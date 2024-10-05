@@ -1,0 +1,15 @@
+@import 'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css';
+
+/* Custom styles */
+.drag-drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 20px;
+    width: 480px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.drag-drop-zone.dragover {
+    background-color: #f0f0f0;
+    border-color: #000;
+}

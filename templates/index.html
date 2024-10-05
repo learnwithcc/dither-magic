@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Dithering App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <header class="bg-white shadow-md">
+        <nav class="container mx-auto px-6 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Logo" class="h-8 w-8 mr-2">
+                    <span class="text-xl font-bold">Image Dithering App</span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-8 flex-grow">
+        <h1 class="text-3xl font-bold mb-8 text-center">Upload and Dither Your Image</h1>
+        <form id="upload-form" class="max-w-lg mx-auto">
+            <div id="drag-drop-zone" class="drag-drop-zone mb-4">
+                <p class="text-center mb-2">Drag and drop your image here, or click to select</p>
+                <input type="file" id="file-input" name="file" accept="image/*" class="hidden" required>
+                <button type="button" onclick="document.getElementById('file-input').click()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                    Select Image
+                </button>
+            </div>
+            <div class="mb-4">
+                <label for="algorithm" class="block mb-2">Choose Dithering Algorithm:</label>
+                <select id="algorithm" name="algorithm" class="w-full p-2 border rounded" required>
+                    <option value="floyd-steinberg">Floyd-Steinberg</option>
+                    <option value="ordered">Ordered Dithering</option>
+                </select>
+            </div>
+            <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                Dither Image
+            </button>
+        </form>
+
+        <div class="mt-8 flex justify-center space-x-4">
+            <div>
+                <h2 class="text-xl font-bold mb-2">Original Image</h2>
+                <img id="preview" src="#" alt="Original image preview" class="max-w-xs hidden">
+            </div>
+            <div>
+                <h2 class="text-xl font-bold mb-2">Dithered Image</h2>
+                <img id="result" src="#" alt="Dithered image result" class="max-w-xs hidden">
+            </div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <a id="download-link" href="#" download="dithered.png" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded inline-block hidden">
+                Download Dithered Image
+            </a>
+        </div>
+    </main>
+
+    <footer class="bg-white shadow-md mt-8">
+        <div class="container mx-auto px-6 py-3 text-center">
+            <p>&copy; 2023 Image Dithering App. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
