@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 from PIL import Image
 import io
-from dithering import floyd_steinberg_dither, ordered_dither
+from dithering import floyd_steinberg_dither, ordered_dither, atkinson_dither, bayer_dither
 from api import api_bp
 
 app = Flask(__name__)
@@ -40,6 +40,10 @@ def dither_image():
                     dithered = floyd_steinberg_dither(img)
                 elif algorithm == 'ordered':
                     dithered = ordered_dither(img)
+                elif algorithm == 'atkinson':
+                    dithered = atkinson_dither(img)
+                elif algorithm == 'bayer':
+                    dithered = bayer_dither(img)
                 else:
                     return jsonify({'error': 'Invalid algorithm'}), 400
 

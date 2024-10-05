@@ -3,7 +3,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 import io
 import os
-from dithering import floyd_steinberg_dither, ordered_dither
+from dithering import floyd_steinberg_dither, ordered_dither, atkinson_dither, bayer_dither
 
 api_bp = Blueprint('api', __name__)
 
@@ -32,6 +32,10 @@ def api_dither_image():
                     dithered = floyd_steinberg_dither(img)
                 elif algorithm == 'ordered':
                     dithered = ordered_dither(img)
+                elif algorithm == 'atkinson':
+                    dithered = atkinson_dither(img)
+                elif algorithm == 'bayer':
+                    dithered = bayer_dither(img)
                 else:
                     return jsonify({'error': 'Invalid algorithm'}), 400
 
