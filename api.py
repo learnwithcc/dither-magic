@@ -7,7 +7,7 @@ from dithering import floyd_steinberg_dither, ordered_dither, atkinson_dither, b
 
 api_bp = Blueprint('api', __name__)
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const batchDownload = document.getElementById('batch-download');
     const submitButton = form.querySelector('button[type="submit"]');
 
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     let totalFiles = 0;
     let processedFiles = 0;
     let processingTimeout;
@@ -25,9 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         dragDropZone.classList.remove('dragover');
         const files = Array.from(e.dataTransfer.files).filter(file => 
-            file.type.startsWith('image/'));
+            ALLOWED_TYPES.includes(file.type));
         if (files.length === 0) {
-            showError('Please drop only image files');
+            showError('Please drop only supported image files (JPEG, PNG, GIF, WebP)');
             return;
         }
         const dt = new DataTransfer();
@@ -49,8 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateFileList() {
         fileList.innerHTML = '';
         Array.from(fileInput.files).forEach(file => {
-            if (!file.type.startsWith('image/')) {
-                showError(`${file.name} is not an image file`);
+            if (!ALLOWED_TYPES.includes(file.type)) {
+                showError(`${file.name} is not a supported image type. Please use JPEG, PNG, GIF, or WebP.`);
                 return;
             }
             const fileItem = document.createElement('div');
@@ -110,9 +111,9 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsGrid.appendChild(resultCard);
             progressBar.style.width = '100%';
             statusElement.textContent = 'Completed';
-            return { url, filename: `${algorithm}_${file.name}` };
+            return { url, filename: `${algorithm}_${file.name}`, blob };
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error processing file:', error);
             progressBar.style.width = '100%';
             progressBar.style.backgroundColor = '#ef4444';
             statusElement.textContent = 'Failed';
@@ -129,6 +130,38 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             processedFiles++;
             updateOverallProgress();
+        }
+    }
+
+    async function downloadWithDelay(results) {
+        const batchButton = batchDownload.querySelector('button');
+        const originalText = batchButton.textContent;
+        let downloaded = 0;
+
+        try {
+            batchButton.disabled = true;
+            for (const result of results) {
+                try {
+                    const link = document.createElement('a');
+                    link.href = result.url;
+                    link.download = result.filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    downloaded++;
+                    
+                    const progress = Math.round((downloaded / results.length) * 100);
+                    batchButton.textContent = `Downloading... ${progress}%`;
+                    
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                } catch (error) {
+                    console.error('Download failed:', error);
+                    showError(`Failed to download ${result.filename}`);
+                }
+            }
+        } finally {
+            batchButton.disabled = false;
+            batchButton.textContent = originalText;
         }
     }
 
@@ -191,7 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         const result = await processFile(file, algorithm, fileItem);
                         results.push(result);
                     } catch (error) {
-                        // Error is already handled in processFile
                         console.error(`Failed to process ${file.name} with ${algorithm}:`, error);
                     }
                 }));
@@ -202,14 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             if (results.length > 0) {
                 batchDownload.classList.remove('hidden');
-                batchDownload.querySelector('button').onclick = () => {
-                    results.forEach(({ url, filename }) => {
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = filename;
-                        link.click();
-                    });
-                };
+                batchDownload.querySelector('button').onclick = () => downloadWithDelay(results);
             }
         }
     });
