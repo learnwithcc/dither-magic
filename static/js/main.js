@@ -13,13 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let processedFiles = 0;
     let processingTimeout;
 
-    // Clean up blob URLs when leaving the page
     window.addEventListener('beforeunload', () => {
         blobUrls.forEach(url => URL.revokeObjectURL(url));
         clearTimeout(processingTimeout);
     });
 
-    // Drag and drop handlers
     dragDropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dragDropZone.classList.add('dragover');
@@ -66,23 +64,46 @@ document.addEventListener('DOMContentLoaded', () => {
             fileItem.innerHTML = `
                 <div class="flex items-center justify-between">
                     <span class="text-sm">${file.name}</span>
-                    <span class="text-xs text-gray-500 processing-status">Waiting...</span>
+                    <span class="text-xs text-gray-500 processing-status">
+                        🔴 Waiting...
+                    </span>
                 </div>
                 <div class="progress-bar mt-1">
                     <div class="progress-bar-fill" style="width: 0%"></div>
+                </div>
+                <div class="algorithm-statuses mt-1 text-xs space-y-1">
                 </div>
             `;
             fileList.appendChild(fileItem);
         });
     }
 
+    function updateAlgorithmStatus(fileItem, algorithm, status, error = null) {
+        let statusesContainer = fileItem.querySelector('.algorithm-statuses');
+        let algorithmStatus = statusesContainer.querySelector(`[data-algorithm="${algorithm}"]`);
+        
+        if (!algorithmStatus) {
+            algorithmStatus = document.createElement('div');
+            algorithmStatus.setAttribute('data-algorithm', algorithm);
+            statusesContainer.appendChild(algorithmStatus);
+        }
+
+        const emoji = status === 'completed' ? '🟢' : status === 'failed' ? '🔴' : '🔄';
+        const statusText = error ? `${emoji} ${algorithm}: ${error}` : `${emoji} ${algorithm}: ${status}`;
+        algorithmStatus.textContent = statusText;
+        algorithmStatus.className = status === 'failed' ? 'text-red-500' : 'text-gray-600';
+    }
+
     async function processFile(file, algorithm, fileItem) {
         const statusElement = fileItem.querySelector('.processing-status');
         const progressBar = fileItem.querySelector('.progress-bar-fill');
         
+        updateAlgorithmStatus(fileItem, algorithm, 'processing');
+        statusElement.innerHTML = '🔄 Processing...';
+        
         try {
-            statusElement.textContent = `Processing with ${algorithm}...`;
             progressBar.style.width = '50%';
+            progressBar.style.backgroundColor = '#4CAF50';
 
             const formData = new FormData();
             formData.append('file', file);
@@ -104,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
-            blobUrls.add(url); // Track the blob URL for cleanup
+            blobUrls.add(url);
 
             const resultCard = document.createElement('div');
             resultCard.className = 'result-card';
@@ -119,7 +140,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             resultsGrid.appendChild(resultCard);
             progressBar.style.width = '100%';
-            statusElement.textContent = 'Completed';
+            updateAlgorithmStatus(fileItem, algorithm, 'completed');
+
+            const allCompleted = fileItem.querySelectorAll('[data-algorithm]').length === 
+                               Array.from(form.querySelectorAll('input[name="algorithms"]:checked')).length;
+            if (allCompleted) {
+                statusElement.innerHTML = '🟢 Completed';
+            }
 
             return { 
                 url,
@@ -129,18 +156,15 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         } catch (error) {
             console.error('Error processing file:', error);
-            progressBar.style.width = '100%';
             progressBar.style.backgroundColor = '#ef4444';
-            statusElement.textContent = 'Failed';
-            statusElement.classList.add('text-red-500');
+            updateAlgorithmStatus(fileItem, algorithm, 'failed', error.message);
             
-            const errorCard = document.createElement('div');
-            errorCard.className = 'result-card bg-red-50';
-            errorCard.innerHTML = `
-                <h3 class="font-bold mb-2">${file.name} - ${algorithm}</h3>
-                <p class="text-red-500">Error: ${error.message}</p>
-            `;
-            resultsGrid.appendChild(errorCard);
+            const allFailed = Array.from(fileItem.querySelectorAll('[data-algorithm]'))
+                .every(el => el.classList.contains('text-red-500'));
+            if (allFailed) {
+                statusElement.innerHTML = '🔴 Failed';
+            }
+            
             throw error;
         } finally {
             processedFiles++;
@@ -181,7 +205,6 @@ document.addEventListener('DOMContentLoaded', () => {
             link.click();
             document.body.removeChild(link);
             
-            // Cleanup the ZIP blob URL after a delay
             setTimeout(() => {
                 URL.revokeObjectURL(zipUrl);
                 blobUrls.delete(zipUrl);
@@ -225,11 +248,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Clean up previous blob URLs
         blobUrls.forEach(url => URL.revokeObjectURL(url));
         blobUrls.clear();
 
-        // Reset state
         resultsGrid.innerHTML = '';
         batchDownload.classList.add('hidden');
         submitButton.disabled = true;
@@ -249,18 +270,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 120000);
 
         try {
-            for (let file of files) {
+            for (const file of files) {
                 const fileItem = Array.from(fileList.children)
                     .find(item => item.querySelector('span').textContent === file.name);
 
-                await Promise.all(selectedAlgorithms.map(async (algorithm) => {
-                    try {
-                        const result = await processFile(file, algorithm, fileItem);
-                        results.push(result);
-                    } catch (error) {
-                        console.error(`Failed to process ${file.name} with ${algorithm}:`, error);
+                const fileResults = await Promise.allSettled(
+                    selectedAlgorithms.map(algorithm => 
+                        processFile(file, algorithm, fileItem)
+                    )
+                );
+
+                fileResults.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        results.push(result.value);
                     }
-                }));
+                });
             }
         } catch (error) {
             showError('An error occurred during batch processing');
