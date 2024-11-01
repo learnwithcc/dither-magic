@@ -1,12 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import Layout from './components/Layout'
 import DitheringPanel from './components/DitheringPanel'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <div className="min-h-screen bg-gray-100 py-8">
+    <Layout>
       <DitheringPanel />
-    </div>
+    </Layout>
   </React.StrictMode>,
 )
