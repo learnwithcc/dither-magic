@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (status) {
             case 'processing':
                 statusSpan.textContent = '🔄 Processing...';
-                progressBar.style.width = '50%';
+                progressBar.style.width = '0%';  // Changed from '50%' to '0%'
                 progressBar.style.backgroundColor = '#4CAF50';
                 break;
             case 'completed':
