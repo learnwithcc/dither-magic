@@ -65,17 +65,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="flex items-center justify-between">
                     <span class="text-sm">${file.name}</span>
                     <span class="text-xs text-gray-500 processing-status">
-                        🔴 Waiting...
+                        🟢 Ready
                     </span>
                 </div>
-                <div class="progress-bar mt-1">
-                    <div class="progress-bar-fill" style="width: 0%"></div>
-                </div>
                 <div class="algorithm-statuses mt-1 text-xs space-y-1">
+                    <!-- Algorithm-specific progress bars will be added here during processing -->
                 </div>
             `;
             fileList.appendChild(fileItem);
         });
+    }
+
+    function createAlgorithmStatus(algorithm) {
+        const algorithmStatus = document.createElement('div');
+        algorithmStatus.setAttribute('data-algorithm', algorithm);
+        algorithmStatus.className = 'algorithm-status';
+        algorithmStatus.innerHTML = `
+            <div class="flex items-center justify-between">
+                <span>${algorithm}</span>
+                <span class="processing-status">🔄 Processing...</span>
+            </div>
+            <div class="progress-bar mt-1">
+                <div class="progress-bar-fill" style="width: 0%"></div>
+            </div>
+        `;
+        return algorithmStatus;
     }
 
     function updateAlgorithmStatus(fileItem, algorithm, status, error = null) {
@@ -83,27 +97,38 @@ document.addEventListener('DOMContentLoaded', () => {
         let algorithmStatus = statusesContainer.querySelector(`[data-algorithm="${algorithm}"]`);
         
         if (!algorithmStatus) {
-            algorithmStatus = document.createElement('div');
-            algorithmStatus.setAttribute('data-algorithm', algorithm);
+            algorithmStatus = createAlgorithmStatus(algorithm);
             statusesContainer.appendChild(algorithmStatus);
         }
 
-        const emoji = status === 'completed' ? '🟢' : status === 'failed' ? '🔴' : '🔄';
-        const statusText = error ? `${emoji} ${algorithm}: ${error}` : `${emoji} ${algorithm}: ${status}`;
-        algorithmStatus.textContent = statusText;
-        algorithmStatus.className = status === 'failed' ? 'text-red-500' : 'text-gray-600';
+        const statusSpan = algorithmStatus.querySelector('.processing-status');
+        const progressBar = algorithmStatus.querySelector('.progress-bar-fill');
+
+        switch (status) {
+            case 'processing':
+                statusSpan.textContent = '🔄 Processing...';
+                progressBar.style.width = '50%';
+                progressBar.style.backgroundColor = '#4CAF50';
+                break;
+            case 'completed':
+                statusSpan.textContent = '🟢 Completed';
+                progressBar.style.width = '100%';
+                progressBar.style.backgroundColor = '#4CAF50';
+                break;
+            case 'failed':
+                statusSpan.textContent = `🔴 ${error || 'Failed'}`;
+                progressBar.style.width = '100%';
+                progressBar.style.backgroundColor = '#ef4444';
+                break;
+        }
     }
 
     async function processFile(file, algorithm, fileItem) {
-        const statusElement = fileItem.querySelector('.processing-status');
-        const progressBar = fileItem.querySelector('.progress-bar-fill');
-        
-        updateAlgorithmStatus(fileItem, algorithm, 'processing');
-        statusElement.innerHTML = '🔄 Processing...';
+        const mainStatus = fileItem.querySelector('.processing-status');
+        mainStatus.innerHTML = '🔄 Processing...';
         
         try {
-            progressBar.style.width = '50%';
-            progressBar.style.backgroundColor = '#4CAF50';
+            updateAlgorithmStatus(fileItem, algorithm, 'processing');
 
             const formData = new FormData();
             formData.append('file', file);
@@ -139,13 +164,13 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             resultsGrid.appendChild(resultCard);
-            progressBar.style.width = '100%';
             updateAlgorithmStatus(fileItem, algorithm, 'completed');
 
-            const allCompleted = fileItem.querySelectorAll('[data-algorithm]').length === 
-                               Array.from(form.querySelectorAll('input[name="algorithms"]:checked')).length;
+            const allCompleted = Array.from(fileItem.querySelectorAll('.algorithm-status'))
+                .every(status => status.querySelector('.processing-status').textContent.includes('Completed'));
+            
             if (allCompleted) {
-                statusElement.innerHTML = '🟢 Completed';
+                mainStatus.innerHTML = '🟢 All Complete';
             }
 
             return { 
@@ -155,14 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 mimeType: blob.type || 'image/png'
             };
         } catch (error) {
-            console.error('Error processing file:', error);
-            progressBar.style.backgroundColor = '#ef4444';
+            console.error('Error:', error);
             updateAlgorithmStatus(fileItem, algorithm, 'failed', error.message);
             
-            const allFailed = Array.from(fileItem.querySelectorAll('[data-algorithm]'))
-                .every(el => el.classList.contains('text-red-500'));
+            const allFailed = Array.from(fileItem.querySelectorAll('.algorithm-status'))
+                .every(status => status.querySelector('.processing-status').textContent.includes('🔴'));
+            
             if (allFailed) {
-                statusElement.innerHTML = '🔴 Failed';
+                mainStatus.innerHTML = '🔴 Failed';
             }
             
             throw error;
