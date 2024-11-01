@@ -1,0 +1,135 @@
+import React, { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Upload, Image, Check, Loader2 } from "lucide-react";
+
+const DitheringPanel = () => {
+  const [files, setFiles] = useState([
+    {
+      id: 1,
+      name: 'fb2daf5d-386b-4742-a9d2-9b3567726a38.jpg',
+      algorithms: {
+        'floyd-steinberg': true,
+        'ordered': true,
+        'atkinson': true,
+        'bayer': true
+      }
+    },
+    {
+      id: 2,
+      name: 'Y1BJJtA14qzEfOcVHvXv--2--97jqw_2x-city-upscale-kx16j.webp',
+      algorithms: {
+        'floyd-steinberg': true,
+        'ordered': true,
+        'atkinson': true,
+        'bayer': true
+      }
+    }
+  ]);
+
+  const [selectedAlgorithms, setSelectedAlgorithms] = useState({
+    'floyd-steinberg': true,
+    'ordered': true,
+    'atkinson': true,
+    'bayer': true
+  });
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    // Handle file drop logic here
+  };
+
+  return (
+    <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-lg">
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-2xl font-bold text-center">Batch Image Dithering</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Drop Zone */}
+        <div
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center space-y-4 transition-colors hover:border-gray-400 dark:hover:border-gray-500"
+        >
+          <div className="flex flex-col items-center space-y-2">
+            <Upload className="h-10 w-10 text-gray-400" />
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Drag and drop your images here, or click to select
+            </p>
+            <Button variant="secondary" size="sm">
+              Select Images
+            </Button>
+          </div>
+        </div>
+
+        {/* File List */}
+        <div className="space-y-3">
+          {files.map((file) => (
+            <div
+              key={file.id}
+              className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2"
+            >
+              <div className="flex items-center space-x-3">
+                <Image className="h-5 w-5 text-gray-500" />
+                <span className="text-sm font-medium flex-1 truncate">
+                  {file.name}
+                </span>
+                <span className="flex items-center space-x-1 text-green-500">
+                  <Check className="h-4 w-4" />
+                  <span className="text-xs">Complete</span>
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(file.algorithms).map(([algo, complete]) => (
+                  <div
+                    key={algo}
+                    className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="capitalize">{algo.replace('-', ' ')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Algorithm Selection */}
+        <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-medium">Select Dithering Algorithms:</h3>
+          <div className="space-y-2">
+            {Object.entries(selectedAlgorithms).map(([algo, checked]) => (
+              <div key={algo} className="flex items-center space-x-2">
+                <Checkbox
+                  id={algo}
+                  checked={checked}
+                  onCheckedChange={(checked) =>
+                    setSelectedAlgorithms(prev => ({
+                      ...prev,
+                      [algo]: checked
+                    }))
+                  }
+                />
+                <label
+                  htmlFor={algo}
+                  className="text-sm font-medium capitalize leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {algo.replace('-', ' ')}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Process Button */}
+        <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
+          Process Images
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default DitheringPanel;
