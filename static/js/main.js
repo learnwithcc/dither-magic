@@ -8,9 +8,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitButton = form.querySelector('button[type="submit"]');
 
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const blobUrls = new Set();
     let totalFiles = 0;
     let processedFiles = 0;
     let processingTimeout;
+
+    // Clean up blob URLs when leaving the page
+    window.addEventListener('beforeunload', () => {
+        blobUrls.forEach(url => URL.revokeObjectURL(url));
+        clearTimeout(processingTimeout);
+    });
 
     // Drag and drop handlers
     dragDropZone.addEventListener('dragover', (e) => {
@@ -82,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('algorithm', algorithm);
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
 
             const response = await fetch('/dither', {
                 method: 'POST',
@@ -97,21 +104,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
-            
+            blobUrls.add(url); // Track the blob URL for cleanup
+
             const resultCard = document.createElement('div');
             resultCard.className = 'result-card';
             resultCard.innerHTML = `
                 <h3 class="font-bold mb-2">${file.name} - ${algorithm}</h3>
-                <img src="${url}" alt="Dithered image" class="mb-2">
+                <img src="${url}" alt="Dithered image" class="mb-2" loading="lazy">
                 <a href="${url}" download="${algorithm}_${file.name}" 
                    class="inline-block bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded">
                     Download
                 </a>
             `;
+
             resultsGrid.appendChild(resultCard);
             progressBar.style.width = '100%';
             statusElement.textContent = 'Completed';
-            return { url, filename: `${algorithm}_${file.name}`, blob };
+
+            return { 
+                url,
+                filename: `${algorithm}_${file.name}`,
+                blob,
+                mimeType: blob.type || 'image/png'
+            };
         } catch (error) {
             console.error('Error processing file:', error);
             progressBar.style.width = '100%';
@@ -133,32 +148,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function downloadWithDelay(results) {
+    async function createZipDownload(results) {
+        const zip = new JSZip();
         const batchButton = batchDownload.querySelector('button');
         const originalText = batchButton.textContent;
-        let downloaded = 0;
-
+        
         try {
             batchButton.disabled = true;
-            for (const result of results) {
+            
+            for (let i = 0; i < results.length; i++) {
+                const result = results[i];
+                const progress = Math.round(((i + 1) / results.length) * 100);
+                batchButton.textContent = `Preparing ZIP... ${progress}%`;
+                
                 try {
-                    const link = document.createElement('a');
-                    link.href = result.url;
-                    link.download = result.filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    downloaded++;
-                    
-                    const progress = Math.round((downloaded / results.length) * 100);
-                    batchButton.textContent = `Downloading... ${progress}%`;
-                    
-                    await new Promise(resolve => setTimeout(resolve, 800));
+                    zip.file(result.filename, result.blob, { binary: true });
                 } catch (error) {
-                    console.error('Download failed:', error);
-                    showError(`Failed to download ${result.filename}`);
+                    console.error(`Failed to add ${result.filename} to ZIP:`, error);
+                    showError(`Failed to add ${result.filename} to ZIP`);
                 }
             }
+            
+            batchButton.textContent = 'Generating ZIP file...';
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const zipUrl = URL.createObjectURL(zipBlob);
+            blobUrls.add(zipUrl);
+            
+            const link = document.createElement('a');
+            link.href = zipUrl;
+            link.download = 'dithered_images.zip';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Cleanup the ZIP blob URL after a delay
+            setTimeout(() => {
+                URL.revokeObjectURL(zipUrl);
+                blobUrls.delete(zipUrl);
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Failed to create ZIP:', error);
+            showError('Failed to create ZIP file');
         } finally {
             batchButton.disabled = false;
             batchButton.textContent = originalText;
@@ -194,6 +225,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Clean up previous blob URLs
+        blobUrls.forEach(url => URL.revokeObjectURL(url));
+        blobUrls.clear();
+
         // Reset state
         resultsGrid.innerHTML = '';
         batchDownload.classList.add('hidden');
@@ -204,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
         processedFiles = 0;
         const results = [];
 
-        // Set a timeout for the entire batch processing
         processingTimeout = setTimeout(() => {
             if (processedFiles < totalFiles) {
                 showError('Processing is taking longer than expected. Please try with fewer images or algorithms.');
@@ -212,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitButton.disabled = false;
                 form.classList.remove('loading');
             }
-        }, 120000); // 2 minutes timeout for batch processing
+        }, 120000);
 
         try {
             for (let file of files) {
@@ -234,13 +268,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             if (results.length > 0) {
                 batchDownload.classList.remove('hidden');
-                batchDownload.querySelector('button').onclick = () => downloadWithDelay(results);
+                batchDownload.querySelector('button').onclick = () => createZipDownload(results);
             }
         }
-    });
-
-    // Clean up function to handle page unload
-    window.addEventListener('beforeunload', () => {
-        clearTimeout(processingTimeout);
     });
 });

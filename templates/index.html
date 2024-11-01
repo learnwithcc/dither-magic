@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Dithering App</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
     <header class="bg-white shadow-md">
@@ -63,7 +64,7 @@
 
         <div id="batch-download" class="mt-8 text-center hidden">
             <button class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
-                Download All Results
+                Download All Results (ZIP)
             </button>
         </div>
     </main>
