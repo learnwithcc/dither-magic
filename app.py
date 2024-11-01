@@ -24,9 +24,11 @@ def index():
 def dither_image():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
+    
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
+    
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -51,9 +53,17 @@ def dither_image():
                 dithered.save(output, format='PNG')
                 output.seek(0)
                 os.remove(filepath)
-                return send_file(output, mimetype='image/png', as_attachment=True, download_name='dithered.png')
+                return send_file(
+                    output,
+                    mimetype='image/png',
+                    as_attachment=True,
+                    download_name=f'{algorithm}_{filename}'
+                )
         except Exception as e:
+            if os.path.exists(filepath):
+                os.remove(filepath)
             return jsonify({'error': str(e)}), 500
+        
     return jsonify({'error': 'Invalid file type'}), 400
 
 if __name__ == '__main__':
