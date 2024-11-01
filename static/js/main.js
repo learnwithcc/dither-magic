@@ -5,6 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileList = document.getElementById('file-list');
     const resultsGrid = document.getElementById('results-grid');
     const batchDownload = document.getElementById('batch-download');
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    let totalFiles = 0;
+    let processedFiles = 0;
+    let processingTimeout;
 
     // Drag and drop handlers
     dragDropZone.addEventListener('dragover', (e) => {
@@ -19,25 +24,124 @@ document.addEventListener('DOMContentLoaded', () => {
     dragDropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dragDropZone.classList.remove('dragover');
-        fileInput.files = e.dataTransfer.files;
+        const files = Array.from(e.dataTransfer.files).filter(file => 
+            file.type.startsWith('image/'));
+        if (files.length === 0) {
+            showError('Please drop only image files');
+            return;
+        }
+        const dt = new DataTransfer();
+        files.forEach(file => dt.items.add(file));
+        fileInput.files = dt.files;
         updateFileList();
     });
 
     fileInput.addEventListener('change', updateFileList);
 
+    function showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message mb-4';
+        errorDiv.textContent = message;
+        form.insertBefore(errorDiv, form.firstChild);
+        setTimeout(() => errorDiv.remove(), 5000);
+    }
+
     function updateFileList() {
         fileList.innerHTML = '';
         Array.from(fileInput.files).forEach(file => {
+            if (!file.type.startsWith('image/')) {
+                showError(`${file.name} is not an image file`);
+                return;
+            }
             const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
+            fileItem.className = 'file-item mb-2';
             fileItem.innerHTML = `
-                <span>${file.name}</span>
-                <div class="progress-bar hidden">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm">${file.name}</span>
+                    <span class="text-xs text-gray-500 processing-status">Waiting...</span>
+                </div>
+                <div class="progress-bar mt-1">
                     <div class="progress-bar-fill" style="width: 0%"></div>
                 </div>
             `;
             fileList.appendChild(fileItem);
         });
+    }
+
+    async function processFile(file, algorithm, fileItem) {
+        const statusElement = fileItem.querySelector('.processing-status');
+        const progressBar = fileItem.querySelector('.progress-bar-fill');
+        
+        try {
+            statusElement.textContent = `Processing with ${algorithm}...`;
+            progressBar.style.width = '50%';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('algorithm', algorithm);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+            const response = await fetch('/dither', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            }).finally(() => clearTimeout(timeoutId));
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to process image');
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            
+            const resultCard = document.createElement('div');
+            resultCard.className = 'result-card';
+            resultCard.innerHTML = `
+                <h3 class="font-bold mb-2">${file.name} - ${algorithm}</h3>
+                <img src="${url}" alt="Dithered image" class="mb-2">
+                <a href="${url}" download="${algorithm}_${file.name}" 
+                   class="inline-block bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded">
+                    Download
+                </a>
+            `;
+            resultsGrid.appendChild(resultCard);
+            progressBar.style.width = '100%';
+            statusElement.textContent = 'Completed';
+            return { url, filename: `${algorithm}_${file.name}` };
+        } catch (error) {
+            console.error('Error:', error);
+            progressBar.style.width = '100%';
+            progressBar.style.backgroundColor = '#ef4444';
+            statusElement.textContent = 'Failed';
+            statusElement.classList.add('text-red-500');
+            
+            const errorCard = document.createElement('div');
+            errorCard.className = 'result-card bg-red-50';
+            errorCard.innerHTML = `
+                <h3 class="font-bold mb-2">${file.name} - ${algorithm}</h3>
+                <p class="text-red-500">Error: ${error.message}</p>
+            `;
+            resultsGrid.appendChild(errorCard);
+            throw error;
+        } finally {
+            processedFiles++;
+            updateOverallProgress();
+        }
+    }
+
+    function updateOverallProgress() {
+        const progress = (processedFiles / totalFiles) * 100;
+        submitButton.textContent = `Processing... ${Math.round(progress)}%`;
+        
+        if (processedFiles === totalFiles) {
+            submitButton.textContent = 'Process Images';
+            submitButton.disabled = false;
+            form.classList.remove('loading');
+            clearTimeout(processingTimeout);
+        }
     }
 
     form.addEventListener('submit', async (e) => {
@@ -47,79 +151,71 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(input => input.value);
         
         if (selectedAlgorithms.length === 0) {
-            alert('Please select at least one dithering algorithm');
+            showError('Please select at least one dithering algorithm');
             return;
         }
 
-        resultsGrid.innerHTML = '';
-        form.classList.add('loading');
         const files = Array.from(fileInput.files);
-        const results = [];
-
-        for (let file of files) {
-            const fileItem = fileList.querySelector(`div:contains('${file.name}')`);
-            const progressBar = fileItem.querySelector('.progress-bar');
-            progressBar.classList.remove('hidden');
-
-            for (let algorithm of selectedAlgorithms) {
-                try {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('algorithm', algorithm);
-
-                    const response = await fetch('/dither', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        const url = URL.createObjectURL(blob);
-                        
-                        const resultCard = document.createElement('div');
-                        resultCard.className = 'result-card';
-                        resultCard.innerHTML = `
-                            <h3 class="font-bold mb-2">${file.name} - ${algorithm}</h3>
-                            <img src="${url}" alt="Dithered image">
-                            <a href="${url}" download="${algorithm}_${file.name}" class="mt-2 inline-block bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded">
-                                Download
-                            </a>
-                        `;
-                        resultsGrid.appendChild(resultCard);
-                        results.push({ url, filename: `${algorithm}_${file.name}` });
-                    } else {
-                        const error = await response.json();
-                        throw new Error(error.error);
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    const errorCard = document.createElement('div');
-                    errorCard.className = 'result-card bg-red-50';
-                    errorCard.innerHTML = `
-                        <h3 class="font-bold mb-2">${file.name} - ${algorithm}</h3>
-                        <p class="text-red-500">Error: ${error.message}</p>
-                    `;
-                    resultsGrid.appendChild(errorCard);
-                }
-            }
+        if (files.length === 0) {
+            showError('Please select at least one image');
+            return;
         }
 
-        form.classList.remove('loading');
-        if (results.length > 0) {
-            batchDownload.classList.remove('hidden');
-            batchDownload.querySelector('button').onclick = () => {
-                results.forEach(({ url, filename }) => {
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = filename;
-                    link.click();
-                });
-            };
+        // Reset state
+        resultsGrid.innerHTML = '';
+        batchDownload.classList.add('hidden');
+        submitButton.disabled = true;
+        form.classList.add('loading');
+        
+        totalFiles = files.length * selectedAlgorithms.length;
+        processedFiles = 0;
+        const results = [];
+
+        // Set a timeout for the entire batch processing
+        processingTimeout = setTimeout(() => {
+            if (processedFiles < totalFiles) {
+                showError('Processing is taking longer than expected. Please try with fewer images or algorithms.');
+                submitButton.textContent = 'Process Images';
+                submitButton.disabled = false;
+                form.classList.remove('loading');
+            }
+        }, 120000); // 2 minutes timeout for batch processing
+
+        try {
+            for (let file of files) {
+                const fileItem = Array.from(fileList.children)
+                    .find(item => item.querySelector('span').textContent === file.name);
+
+                await Promise.all(selectedAlgorithms.map(async (algorithm) => {
+                    try {
+                        const result = await processFile(file, algorithm, fileItem);
+                        results.push(result);
+                    } catch (error) {
+                        // Error is already handled in processFile
+                        console.error(`Failed to process ${file.name} with ${algorithm}:`, error);
+                    }
+                }));
+            }
+        } catch (error) {
+            showError('An error occurred during batch processing');
+            console.error('Batch processing error:', error);
+        } finally {
+            if (results.length > 0) {
+                batchDownload.classList.remove('hidden');
+                batchDownload.querySelector('button').onclick = () => {
+                    results.forEach(({ url, filename }) => {
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = filename;
+                        link.click();
+                    });
+                };
+            }
         }
     });
 
-    // Helper function to find elements containing text
-    Element.prototype.contains = function(text) {
-        return this.textContent.includes(text);
-    };
+    // Clean up function to handle page unload
+    window.addEventListener('beforeunload', () => {
+        clearTimeout(processingTimeout);
+    });
 });
