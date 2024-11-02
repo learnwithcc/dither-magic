@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Upload, Image, Check, Loader2, ZoomIn, ZoomOut, Download, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Upload, Image, Check, Loader2, ZoomIn, ZoomOut, Download, X } from "lucide-react";
 import JSZip from 'jszip';
 
 const DitheringPanel = () => {
@@ -21,11 +21,6 @@ const DitheringPanel = () => {
   const [selectedResults, setSelectedResults] = useState(new Set());
   const MAX_ZOOM = 5;
 
-  useEffect(() => {
-    // Reset selected results when new results come in
-    setSelectedResults(new Set(results.map(r => r.id)));
-  }, [results]);
-
   const addFiles = useCallback((newFiles) => {
     setFiles(prev => [
       ...prev,
@@ -37,17 +32,6 @@ const DitheringPanel = () => {
       }))
     ]);
   }, []);
-
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const droppedFiles = Array.from(e.dataTransfer.files).filter(
-      file => file.type.startsWith('image/')
-    );
-    if (droppedFiles.length > 0) {
-      addFiles(droppedFiles);
-    }
-  }, [addFiles]);
 
   const handleProcess = async () => {
     const algorithms = Object.entries(selectedAlgorithms)
@@ -156,7 +140,16 @@ const DitheringPanel = () => {
         <CardContent className="space-y-6">
           {/* File Upload Section */}
           <div
-            onDrop={handleDrop}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const droppedFiles = Array.from(e.dataTransfer.files).filter(
+                file => file.type.startsWith('image/')
+              );
+              if (droppedFiles.length > 0) {
+                addFiles(droppedFiles);
+              }
+            }}
             onDragOver={(e) => e.preventDefault()}
             className="border-2 border-dashed rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
           >
@@ -203,7 +196,7 @@ const DitheringPanel = () => {
           {/* File List */}
           <div className="grid grid-cols-2 gap-4">
             {files.map((file, index) => (
-              <Card key={index} className="p-4">
+              <Card key={file.id} className="p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm truncate">{file.name}</span>
                   <span className="text-xs text-green-500">🟢 Ready</span>
@@ -219,7 +212,7 @@ const DitheringPanel = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setFiles(prev => prev.filter((_, i) => i !== index))}
+                    onClick={() => setFiles(prev => prev.filter(f => f.id !== file.id))}
                   >
                     Remove
                   </Button>
@@ -251,8 +244,8 @@ const DitheringPanel = () => {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Results</h3>
               <div className="grid grid-cols-2 gap-4">
-                {results.map((result, index) => (
-                  <Card key={index} className="p-4">
+                {results.map((result) => (
+                  <Card key={result.id} className="p-4">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm capitalize">{result.algorithm.replace('-', ' ')}</span>
@@ -271,7 +264,7 @@ const DitheringPanel = () => {
                       <img
                         src={result.url}
                         alt={`${result.algorithm} - ${result.fileName}`}
-                        className="w-full h-32 object-cover rounded-md"
+                        className="w-full h-32 object-cover rounded-md cursor-pointer"
                         onClick={() => setPreviewImage({ ...result, type: 'output' })}
                       />
                       <Button

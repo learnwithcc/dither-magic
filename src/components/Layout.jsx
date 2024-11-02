@@ -21,7 +21,7 @@ const Layout = ({ children }) => {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100 relative">
       {/* Mobile menu button */}
       <Button
         variant="ghost"
@@ -34,10 +34,10 @@ const Layout = ({ children }) => {
 
       {/* Left Navigation Panel */}
       <div 
-        className={`fixed md:relative bg-white shadow-lg transition-all duration-300 ease-in-out h-full z-40 ${
+        className={`fixed md:static bg-white shadow-lg transition-all duration-300 ease-in-out h-full z-40 ${
           isCollapsed 
-            ? '-translate-x-full md:translate-x-0 w-64 md:w-16' 
-            : 'translate-x-0 w-64'
+            ? 'w-0 md:w-16' 
+            : 'w-64'
         }`}
       >
         <nav className="flex flex-col h-full">
@@ -78,7 +78,7 @@ const Layout = ({ children }) => {
       
       {/* Main Content */}
       <div className={`flex-1 p-4 sm:p-6 md:p-8 transition-all duration-300 ${
-        isCollapsed ? 'ml-0 md:ml-16' : 'ml-0 md:ml-64'
+        isCollapsed ? 'md:ml-16' : 'md:ml-64'
       }`}>
         <div className="mt-12 md:mt-0">
           {children}
