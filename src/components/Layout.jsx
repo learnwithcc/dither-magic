@@ -36,14 +36,14 @@ const Layout = ({ children }) => {
       <div 
         className={`fixed md:relative bg-white shadow-lg transition-all duration-300 ease-in-out h-full z-40 ${
           isCollapsed 
-            ? 'w-0 md:w-16 -translate-x-full md:translate-x-0' 
-            : 'w-64 translate-x-0'
+            ? '-translate-x-full md:translate-x-0 w-64 md:w-16' 
+            : 'translate-x-0 w-64'
         }`}
       >
         <nav className="flex flex-col h-full">
           <div className="p-4 flex items-center justify-between">
             <h1 className={`text-xl font-bold transition-opacity duration-200 ${
-              isCollapsed ? 'opacity-0 md:w-0' : 'opacity-100'
+              isCollapsed ? 'opacity-0 md:hidden' : 'opacity-100'
             }`}>
               Dithering
             </h1>
@@ -61,25 +61,25 @@ const Layout = ({ children }) => {
             </Button>
           </div>
           
-          {/* Nav items */}
           <div className="flex-grow px-4">
             {/* Add nav items here if needed */}
           </div>
 
-          {/* Settings Button */}
           <button className="p-6 hover:bg-gray-100 flex items-center justify-center touch-manipulation">
             <Settings className="h-6 w-6" />
             <span className={`ml-3 transition-opacity duration-200 ${
-              isCollapsed ? 'opacity-0 md:w-0' : 'opacity-100'
+              isCollapsed ? 'opacity-0 md:hidden' : 'opacity-100'
             }`}>
               Settings
             </span>
           </button>
         </nav>
       </div>
-
+      
       {/* Main Content */}
-      <div className="flex-1 p-4 sm:p-6 md:p-8 ml-0 md:ml-16 transition-all duration-300">
+      <div className={`flex-1 p-4 sm:p-6 md:p-8 transition-all duration-300 ${
+        isCollapsed ? 'ml-0 md:ml-16' : 'ml-0 md:ml-64'
+      }`}>
         <div className="mt-12 md:mt-0">
           {children}
         </div>
