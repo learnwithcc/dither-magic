@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ const DitheringPanel = () => {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [selectedResults, setSelectedResults] = useState(new Set());
-
   const MAX_ZOOM = 5;
 
   const [selectedAlgorithms, setSelectedAlgorithms] = useState({
@@ -29,44 +28,23 @@ const DitheringPanel = () => {
     setSelectedResults(new Set(results.map(r => r.id)));
   }, [results]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!previewImage) return;
-      
-      switch(e.key) {
-        case 'ArrowLeft':
-          handleNavigatePreview(-1);
-          break;
-        case 'ArrowRight':
-          handleNavigatePreview(1);
-          break;
-        case 'Escape':
-          setPreviewImage(null);
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewImage]);
-
-  const handleDrop = (e) => {
+  // File handling functions
+  const handleDrop = useCallback((e) => {
     e.preventDefault();
     const droppedFiles = Array.from(e.dataTransfer.files).filter(
       file => file.type.startsWith('image/')
     );
     addFiles(droppedFiles);
-  };
+  }, []);
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = useCallback((e) => {
     const selectedFiles = Array.from(e.target.files).filter(
       file => file.type.startsWith('image/')
     );
     addFiles(selectedFiles);
-  };
+  }, []);
 
-  const addFiles = (newFiles) => {
+  const addFiles = useCallback((newFiles) => {
     setFiles(prevFiles => [
       ...prevFiles,
       ...newFiles.map(file => ({
@@ -78,9 +56,9 @@ const DitheringPanel = () => {
         preview: URL.createObjectURL(file)
       }))
     ]);
-  };
+  }, []);
 
-  const handleRemove = (fileId) => {
+  const handleRemove = useCallback((fileId) => {
     setFiles(prevFiles => {
       const updatedFiles = prevFiles.filter(f => f.id !== fileId);
       const removedFile = prevFiles.find(f => f.id === fileId);
@@ -92,28 +70,30 @@ const DitheringPanel = () => {
     if (previewImage?.id === fileId) {
       setPreviewImage(null);
     }
-  };
+  }, [previewImage]);
 
-  const handlePreviewImage = (image, type = 'input') => {
+  // Preview functions
+  const handlePreviewImage = useCallback((image, type = 'input') => {
     const currentArray = type === 'input' ? files : results;
     const index = currentArray.findIndex(item => item.id === image.id);
     setPreviewIndex(index);
     setPreviewImage({ ...image, type });
     setZoom(1);
-  };
+  }, [files, results]);
 
-  const handleNavigatePreview = (direction) => {
+  const handleNavigatePreview = useCallback((direction) => {
     const currentArray = previewImage.type === 'input' ? files : results;
     const newIndex = (previewIndex + direction + currentArray.length) % currentArray.length;
     const newImage = currentArray[newIndex];
     handlePreviewImage(newImage, previewImage.type);
-  };
+  }, [previewImage, previewIndex, files, results, handlePreviewImage]);
 
-  const handleZoom = (delta) => {
+  const handleZoom = useCallback((delta) => {
     setZoom(prev => Math.max(0.5, Math.min(MAX_ZOOM, prev + delta)));
-  };
+  }, []);
 
-  const toggleResultSelection = (resultId) => {
+  // Result handling functions
+  const toggleResultSelection = useCallback((resultId) => {
     setSelectedResults(prev => {
       const newSet = new Set(prev);
       if (newSet.has(resultId)) {
@@ -123,8 +103,52 @@ const DitheringPanel = () => {
       }
       return newSet;
     });
-  };
+  }, []);
 
+  // Touch handling
+  const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
+  const [touchEnd, setTouchEnd] = useState({ x: 0, y: 0 });
+
+  const handleTouchStart = useCallback((e) => {
+    setTouchStart({
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    });
+    setTouchEnd({
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    });
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    setTouchEnd({
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    });
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const deltaX = touchStart.x - touchEnd.x;
+    const deltaY = touchStart.y - touchEnd.y;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (Math.abs(deltaX) > 50) {
+        if (deltaX > 0) {
+          handleNavigatePreview(1);
+        } else {
+          handleNavigatePreview(-1);
+        }
+      }
+    } else if (Math.abs(deltaY) > 50) {
+      if (deltaY > 0) {
+        handleZoom(0.25);
+      } else {
+        handleZoom(-0.25);
+      }
+    }
+  }, [touchStart, touchEnd, handleNavigatePreview, handleZoom]);
+
+  // Process images
   const processImages = async () => {
     const algorithms = Object.entries(selectedAlgorithms)
       .filter(([_, selected]) => selected)
@@ -252,20 +276,20 @@ const DitheringPanel = () => {
 
   return (
     <>
-      <Card className="w-full max-w-3xl mx-auto">
-        <CardHeader>
+      <Card className="w-full max-w-3xl mx-auto px-4 sm:px-6">
+        <CardHeader className="space-y-2 sm:space-y-4">
           <CardTitle>Image Dithering</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4 sm:space-y-6">
           {/* File Upload Section */}
           <div
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
+            className="border-2 border-dashed rounded-lg p-4 sm:p-6 text-center hover:border-gray-400 transition-colors"
           >
             <div className="flex flex-col items-center space-y-4">
-              <Upload className="h-12 w-12 text-gray-400" />
-              <p className="text-lg text-gray-600">
+              <Upload className="h-8 sm:h-12 w-8 sm:w-12 text-gray-400" />
+              <p className="text-base sm:text-lg text-gray-600">
                 Drag and drop your images here
               </p>
               <p className="text-sm text-gray-500">or</p>
@@ -279,7 +303,8 @@ const DitheringPanel = () => {
               />
               <Button
                 variant="secondary"
-                size="lg"
+                className="w-full sm:w-auto"
+                size="sm"
                 onClick={() => document.getElementById('file-input').click()}
               >
                 Select Images
@@ -288,11 +313,11 @@ const DitheringPanel = () => {
           </div>
 
           {/* Algorithm Selection */}
-          <div className="mt-6 space-y-4">
+          <div className="space-y-4">
             <h3 className="text-lg font-semibold">Select Dithering Algorithms</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(selectedAlgorithms).map(([algo, checked]) => (
-                <div key={algo} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div key={algo} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg touch-manipulation">
                   <Checkbox
                     id={algo}
                     checked={checked}
@@ -305,7 +330,7 @@ const DitheringPanel = () => {
                   />
                   <label
                     htmlFor={algo}
-                    className="text-sm font-medium capitalize leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    className="flex-1 text-sm font-medium capitalize leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     {algo.replace('-', ' ')}
                   </label>
@@ -316,9 +341,9 @@ const DitheringPanel = () => {
 
           {/* File List */}
           {files.length > 0 && (
-            <div className="mt-6 space-y-4">
+            <div className="space-y-4">
               <h3 className="text-lg font-semibold">Selected Images</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {files.map((file) => (
                   <div
                     key={file.id}
@@ -378,7 +403,7 @@ const DitheringPanel = () => {
 
           {/* Process Button */}
           <Button
-            className="w-full mt-6"
+            className="w-full"
             size="lg"
             disabled={processing || files.length === 0}
             onClick={processImages}
@@ -397,12 +422,12 @@ const DitheringPanel = () => {
 
       {/* Results Section */}
       {results.length > 0 && (
-        <Card className="w-full max-w-3xl mx-auto mt-8">
+        <Card className="w-full max-w-3xl mx-auto mt-6 sm:mt-8 px-4 sm:px-6">
           <CardHeader>
             <CardTitle>Results</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {results.map((result) => (
                 <div key={result.id} className="space-y-2">
                   <div className="relative group">
@@ -418,7 +443,7 @@ const DitheringPanel = () => {
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         checked={selectedResults.has(result.id)}
-                        onCheckedChange={(checked) => toggleResultSelection(result.id)}
+                        onCheckedChange={() => toggleResultSelection(result.id)}
                       />
                       <span className="text-sm font-medium capitalize">
                         {result.algorithm.replace('-', ' ')}
@@ -442,12 +467,13 @@ const DitheringPanel = () => {
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between mt-6 space-y-4 sm:space-y-0">
               <span className="text-sm text-gray-600">
                 {selectedResults.size} of {results.length} selected
               </span>
               <Button
                 variant="secondary"
+                className="w-full sm:w-auto"
                 size="lg"
                 onClick={downloadAll}
                 disabled={selectedResults.size === 0}
@@ -462,26 +488,41 @@ const DitheringPanel = () => {
       {/* Preview Modal */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/90">
-          <div className="relative w-full h-full flex items-center justify-center">
+          <div 
+            className="relative w-full h-full flex items-center justify-center"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
             {/* Semi-transparent control overlay */}
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/50 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/50 to-transparent" />
             </div>
 
+            {/* Close button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 text-white hover:bg-white/20 z-50"
+              onClick={() => setPreviewImage(null)}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+
             {/* Navigation Controls */}
             {(previewImage?.type === 'input' ? files.length > 1 : results.length > 1) && (
               <>
                 <Button
                   variant="ghost"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-50"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-50 touch-manipulation"
                   onClick={() => handleNavigatePreview(-1)}
                 >
                   <ChevronLeft className="h-8 w-8" />
                 </Button>
                 <Button
                   variant="ghost"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-50"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-50 touch-manipulation"
                   onClick={() => handleNavigatePreview(1)}
                 >
                   <ChevronRight className="h-8 w-8" />
@@ -489,64 +530,28 @@ const DitheringPanel = () => {
               </>
             )}
 
-            {/* Top Controls */}
-            <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-50">
-              <div className="flex items-center space-x-2">
-                <Button
-                  size="sm"
-                  className="bg-white/10 hover:bg-white/20 text-white"
-                  onClick={() => handleZoom(0.1)}
-                  disabled={zoom >= MAX_ZOOM}
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-white/10 hover:bg-white/20 text-white"
-                  onClick={() => handleZoom(-0.1)}
-                  disabled={zoom <= 0.5}
-                >
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-                <span className="text-white/80 text-sm">
-                  {Math.round(zoom * 100)}%
-                </span>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                {previewImage?.type === 'output' && (
-                  <Button
-                    variant="ghost"
-                    className="text-white hover:bg-white/20"
-                    onClick={() => toggleResultSelection(previewImage.id)}
-                  >
-                    {selectedResults.has(previewImage.id) ? 'Deselect' : 'Select'}
-                  </Button>
-                )}
-                {previewImage?.type === 'input' && (
-                  <Button
-                    size="sm"
-                    className="bg-red-500/80 hover:bg-red-600/80 text-white"
-                    onClick={() => {
-                      handleRemove(previewImage.id);
-                      setPreviewImage(null);
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  className="bg-white/10 hover:bg-white/20 text-white"
-                  onClick={() => setPreviewImage(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+            {/* Zoom Controls */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4 z-50">
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/20 touch-manipulation"
+                onClick={() => handleZoom(-0.25)}
+                disabled={zoom <= 0.5}
+              >
+                <ZoomOut className="h-6 w-6" />
+              </Button>
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/20 touch-manipulation"
+                onClick={() => handleZoom(0.25)}
+                disabled={zoom >= MAX_ZOOM}
+              >
+                <ZoomIn className="h-6 w-6" />
+              </Button>
             </div>
 
             {/* Image */}
-            <div className="h-full w-full flex items-center justify-center overflow-auto p-8">
+            <div className="h-full w-full flex items-center justify-center overflow-auto p-4 sm:p-8">
               {previewImage && (
                 <img
                   src={previewImage.type === 'input' ? previewImage.preview : previewImage.url}
@@ -558,7 +563,7 @@ const DitheringPanel = () => {
                     maxHeight: '100%',
                     objectFit: 'contain'
                   }}
-                  className="select-none"
+                  className="select-none touch-manipulation"
                 />
               )}
             </div>
