@@ -299,7 +299,7 @@ const DitheringPanel = () => {
                     onCheckedChange={(checked) =>
                       setSelectedAlgorithms(prev => ({
                         ...prev,
-                        [algo]: checked
+                        [algo]: checked === true
                       }))
                     }
                   />
@@ -418,7 +418,7 @@ const DitheringPanel = () => {
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         checked={selectedResults.has(result.id)}
-                        onCheckedChange={() => toggleResultSelection(result.id)}
+                        onCheckedChange={(checked) => toggleResultSelection(result.id)}
                       />
                       <span className="text-sm font-medium capitalize">
                         {result.algorithm.replace('-', ' ')}
