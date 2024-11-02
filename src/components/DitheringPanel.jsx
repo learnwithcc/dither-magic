@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Upload, Image, Check, Loader2, ZoomIn, ZoomOut, Download } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Upload, Image, Check, Loader2, ZoomIn, ZoomOut, Download, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import JSZip from 'jszip';
 
 const DitheringPanel = () => {
@@ -11,7 +11,9 @@ const DitheringPanel = () => {
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState([]);
   const [previewImage, setPreviewImage] = useState(null);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [selectedResults, setSelectedResults] = useState(new Set());
 
   const [selectedAlgorithms, setSelectedAlgorithms] = useState({
     'floyd-steinberg': true,
@@ -19,6 +21,11 @@ const DitheringPanel = () => {
     'atkinson': false,
     'bayer': false
   });
+
+  // Reset selected results when results change
+  useEffect(() => {
+    setSelectedResults(new Set(results.map(r => r.id)));
+  }, [results]);
 
   const handleDrop = (e) => {
     e.preventDefault();
@@ -58,15 +65,45 @@ const DitheringPanel = () => {
       }
       return updatedFiles;
     });
+    if (previewImage?.id === fileId) {
+      setPreviewImage(null);
+    }
   };
 
-  const handlePreview = (file) => {
-    setPreviewImage(file);
+  const handlePreviewImage = (image, type = 'input') => {
+    if (type === 'input') {
+      const index = files.findIndex(f => f.id === image.id);
+      setPreviewIndex(index);
+      setPreviewImage({ ...image, type });
+    } else {
+      const index = results.findIndex(r => r.id === image.id);
+      setPreviewIndex(index);
+      setPreviewImage({ ...image, type });
+    }
     setZoom(1);
+  };
+
+  const handleNavigatePreview = (direction) => {
+    const currentArray = previewImage.type === 'input' ? files : results;
+    const newIndex = (previewIndex + direction + currentArray.length) % currentArray.length;
+    const newImage = currentArray[newIndex];
+    handlePreviewImage(newImage, previewImage.type);
   };
 
   const handleZoom = (delta) => {
     setZoom(prev => Math.max(0.5, Math.min(3, prev + delta)));
+  };
+
+  const toggleResultSelection = (resultId) => {
+    setSelectedResults(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(resultId)) {
+        newSet.delete(resultId);
+      } else {
+        newSet.add(resultId);
+      }
+      return newSet;
+    });
   };
 
   const processImages = async () => {
@@ -120,7 +157,8 @@ const DitheringPanel = () => {
               id: `${fileData.id}-${algorithm}`,
               fileName: fileData.name,
               algorithm,
-              url
+              url,
+              preview: url
             });
 
             setFiles(prev => prev.map(f => {
@@ -161,10 +199,17 @@ const DitheringPanel = () => {
   };
 
   const downloadAll = async () => {
+    if (selectedResults.size === 0) {
+      alert('Please select at least one result to download');
+      return;
+    }
+
     const zip = new JSZip();
     
     try {
-      for (const result of results) {
+      const selectedResultsArray = results.filter(result => selectedResults.has(result.id));
+      
+      for (const result of selectedResultsArray) {
         const response = await fetch(result.url);
         const blob = await response.blob();
         const fileName = `${result.algorithm}_${result.fileName}`;
@@ -265,7 +310,7 @@ const DitheringPanel = () => {
                       <Button
                         size="sm"
                         className="bg-blue-500 hover:bg-blue-600 text-white"
-                        onClick={() => handlePreview(file)}
+                        onClick={() => handlePreviewImage(file, 'input')}
                       >
                         Preview
                       </Button>
@@ -330,15 +375,25 @@ const DitheringPanel = () => {
               <div className="grid grid-cols-2 gap-6">
                 {results.map((result) => (
                   <div key={result.id} className="space-y-2">
-                    <img
-                      src={result.url}
-                      alt={`${result.algorithm} - ${result.fileName}`}
-                      className="w-full rounded-lg shadow-md"
-                    />
+                    <div className="relative group">
+                      <img
+                        src={result.url}
+                        alt={`${result.algorithm} - ${result.fileName}`}
+                        className="w-full rounded-lg shadow-md cursor-pointer"
+                        onClick={() => handlePreviewImage(result, 'output')}
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity rounded-lg" />
+                    </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium capitalize">
-                        {result.algorithm.replace('-', ' ')}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={selectedResults.has(result.id)}
+                          onCheckedChange={() => toggleResultSelection(result.id)}
+                        />
+                        <span className="text-sm font-medium capitalize">
+                          {result.algorithm.replace('-', ' ')}
+                        </span>
+                      </div>
                       <Button
                         size="sm"
                         className="bg-blue-500 hover:bg-blue-600 text-white"
@@ -357,50 +412,97 @@ const DitheringPanel = () => {
                   </div>
                 ))}
               </div>
-              <Button
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 text-lg shadow-md hover:shadow-lg transition-all"
-                onClick={downloadAll}
-              >
-                Download All Results (ZIP)
-              </Button>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">
+                  {selectedResults.size} of {results.length} selected
+                </span>
+                <Button
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 shadow-md hover:shadow-lg transition-all"
+                  onClick={downloadAll}
+                  disabled={selectedResults.size === 0}
+                >
+                  Download Selected Results (ZIP)
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl w-[90vw] h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>{previewImage?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="relative flex-1 overflow-hidden">
-            <div className="absolute top-4 right-4 flex space-x-2 z-10">
+        <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/90">
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Navigation Controls */}
+            {previewImage?.type === 'input' && files.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+                  onClick={() => handleNavigatePreview(-1)}
+                >
+                  <ChevronLeft className="h-8 w-8" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+                  onClick={() => handleNavigatePreview(1)}
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </Button>
+              </>
+            )}
+
+            {/* Top Controls */}
+            <div className="absolute top-4 right-4 flex items-center space-x-2">
               <Button
                 size="sm"
-                className="bg-blue-500 hover:bg-blue-600 text-white"
+                className="bg-white/10 hover:bg-white/20 text-white"
                 onClick={() => handleZoom(0.1)}
               >
                 <ZoomIn className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
-                className="bg-blue-500 hover:bg-blue-600 text-white"
+                className="bg-white/10 hover:bg-white/20 text-white"
                 onClick={() => handleZoom(-0.1)}
               >
                 <ZoomOut className="h-4 w-4" />
               </Button>
+              {previewImage?.type === 'input' && (
+                <Button
+                  size="sm"
+                  className="bg-red-500/80 hover:bg-red-600/80 text-white"
+                  onClick={() => {
+                    handleRemove(previewImage.id);
+                    setPreviewImage(null);
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                size="sm"
+                className="bg-white/10 hover:bg-white/20 text-white"
+                onClick={() => setPreviewImage(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-            <div className="h-full flex items-center justify-center overflow-auto">
+
+            {/* Image */}
+            <div className="h-full w-full flex items-center justify-center overflow-auto p-8">
               {previewImage && (
                 <img
-                  src={previewImage.preview}
+                  src={previewImage.type === 'input' ? previewImage.preview : previewImage.url}
                   alt={previewImage.name}
                   style={{
                     transform: `scale(${zoom})`,
                     transition: 'transform 0.2s',
                     maxWidth: '100%',
-                    maxHeight: '100%'
+                    maxHeight: '100%',
+                    objectFit: 'contain'
                   }}
+                  className="select-none"
                 />
               )}
             </div>
