@@ -34,8 +34,10 @@ const Layout = ({ children }) => {
 
       {/* Left Navigation Panel */}
       <div 
-        className={`fixed md:static bg-white shadow-lg transition-all duration-300 ease-in-out h-full z-40 ${
-          isCollapsed ? '-translate-x-full md:translate-x-0 w-0 md:w-16' : 'translate-x-0 w-64'
+        className={`fixed md:relative bg-white shadow-lg transition-all duration-300 ease-in-out h-full z-40 ${
+          isCollapsed 
+            ? 'w-0 md:w-16 -translate-x-full md:translate-x-0' 
+            : 'w-64 translate-x-0'
         }`}
       >
         <nav className="flex flex-col h-full">
@@ -77,7 +79,7 @@ const Layout = ({ children }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-4 sm:p-6 md:p-8 ml-0 md:ml-16 overflow-auto">
+      <div className="flex-1 p-4 sm:p-6 md:p-8 ml-0 md:ml-16 transition-all duration-300">
         <div className="mt-12 md:mt-0">
           {children}
         </div>
