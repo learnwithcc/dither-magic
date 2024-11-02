@@ -21,7 +21,7 @@ const Layout = ({ children }) => {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-gray-100 relative">
+    <div className="flex min-h-screen bg-gray-100">
       {/* Mobile menu button */}
       <Button
         variant="ghost"
@@ -34,58 +34,52 @@ const Layout = ({ children }) => {
 
       {/* Left Navigation Panel */}
       <div 
-        className={`fixed md:static bg-white shadow-lg transition-all duration-300 ease-in-out h-full z-40 ${
+        className={`fixed md:relative h-screen bg-white shadow-lg transition-all duration-300 ease-in-out ${
           isCollapsed 
-            ? 'w-0 md:w-16' 
-            : 'w-64'
+            ? '-translate-x-full md:translate-x-0 md:w-16' 
+            : 'translate-x-0 w-64'
         }`}
       >
         <nav className="flex flex-col h-full">
-          <div className="p-4 flex items-center justify-between">
-            <h1 className={`text-xl font-bold transition-opacity duration-200 ${
-              isCollapsed ? 'opacity-0 md:hidden' : 'opacity-100'
-            }`}>
+          <div className="p-4">
+            <h1 className={`text-xl font-bold ${isCollapsed ? 'md:hidden' : ''}`}>
               Dithering
             </h1>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden md:flex absolute -right-4 top-6 bg-white shadow-md rounded-full p-1"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronLeft className="h-4 w-4" />
-              )}
-            </Button>
           </div>
           
+          {/* Toggle button */}
+          <button
+            className="absolute -right-3 top-6 bg-white shadow-md rounded-full p-1 hidden md:block"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </button>
+
           <div className="flex-grow px-4">
-            {/* Add nav items here if needed */}
+            {/* Nav items here */}
           </div>
 
-          <button className="p-6 hover:bg-gray-100 flex items-center justify-center touch-manipulation">
+          <button className="p-4 hover:bg-gray-100 flex items-center">
             <Settings className="h-6 w-6" />
-            <span className={`ml-3 transition-opacity duration-200 ${
-              isCollapsed ? 'opacity-0 md:hidden' : 'opacity-100'
-            }`}>
+            <span className={`ml-2 ${isCollapsed ? 'md:hidden' : ''}`}>
               Settings
             </span>
           </button>
         </nav>
       </div>
-      
+
       {/* Main Content */}
-      <div className={`flex-1 p-4 sm:p-6 md:p-8 transition-all duration-300 ${
+      <div className={`flex-1 p-4 md:p-8 transition-all ${
         isCollapsed ? 'md:ml-16' : 'md:ml-64'
       }`}>
-        <div className="mt-12 md:mt-0">
-          {children}
-        </div>
+        {children}
       </div>
 
-      {/* Overlay for mobile */}
+      {/* Mobile overlay */}
       {!isCollapsed && (
         <div
           className="fixed inset-0 bg-black/20 z-30 md:hidden"
