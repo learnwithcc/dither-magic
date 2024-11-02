@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Upload, Image, Check, Loader2, ZoomIn, ZoomOut } from "lucide-react";
+import { Upload, Image, Check, Loader2, ZoomIn, ZoomOut, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import JSZip from 'jszip';
 
@@ -163,22 +163,27 @@ const DitheringPanel = () => {
   const downloadAll = async () => {
     const zip = new JSZip();
     
-    for (const result of results) {
-      const response = await fetch(result.url);
-      const blob = await response.blob();
-      const fileName = `${result.algorithm}_${result.fileName}`;
-      zip.file(fileName, blob);
-    }
+    try {
+      for (const result of results) {
+        const response = await fetch(result.url);
+        const blob = await response.blob();
+        const fileName = `${result.algorithm}_${result.fileName}`;
+        zip.file(fileName, blob);
+      }
 
-    const content = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(content);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'dithered_images.zip';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'dithered_images.zip';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error creating ZIP:', error);
+      alert('Failed to create ZIP file. Please try downloading images individually.');
+    }
   };
 
   return (
@@ -259,15 +264,14 @@ const DitheringPanel = () => {
                     <div className="flex items-center space-x-2 mt-2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        className="bg-blue-500 hover:bg-blue-600 text-white"
                         onClick={() => handlePreview(file)}
                       >
                         Preview
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="text-red-500"
+                        className="bg-red-500 hover:bg-red-600 text-white"
                         onClick={() => handleRemove(file.id)}
                       >
                         Remove
@@ -306,7 +310,7 @@ const DitheringPanel = () => {
           </div>
 
           <Button
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-4 text-lg shadow-md hover:shadow-lg transition-all"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 text-lg shadow-md hover:shadow-lg transition-all"
             onClick={processImages}
             disabled={processing || files.length === 0}
           >
@@ -337,15 +341,16 @@ const DitheringPanel = () => {
                       </span>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="text-blue-500"
+                        className="bg-blue-500 hover:bg-blue-600 text-white"
                         asChild
                       >
                         <a
                           href={result.url}
                           download={`${result.algorithm}_${result.fileName}`}
+                          className="flex items-center space-x-2"
                         >
-                          Download
+                          <Download className="h-4 w-4 mr-1" />
+                          <span>Download</span>
                         </a>
                       </Button>
                     </div>
@@ -353,11 +358,10 @@ const DitheringPanel = () => {
                 ))}
               </div>
               <Button
-                variant="secondary"
-                className="w-full"
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 text-lg shadow-md hover:shadow-lg transition-all"
                 onClick={downloadAll}
               >
-                Download All (ZIP)
+                Download All Results (ZIP)
               </Button>
             </div>
           )}
@@ -373,14 +377,14 @@ const DitheringPanel = () => {
             <div className="absolute top-4 right-4 flex space-x-2 z-10">
               <Button
                 size="sm"
-                variant="outline"
+                className="bg-blue-500 hover:bg-blue-600 text-white"
                 onClick={() => handleZoom(0.1)}
               >
                 <ZoomIn className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
-                variant="outline"
+                className="bg-blue-500 hover:bg-blue-600 text-white"
                 onClick={() => handleZoom(-0.1)}
               >
                 <ZoomOut className="h-4 w-4" />
