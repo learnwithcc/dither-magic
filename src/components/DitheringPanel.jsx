@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,15 @@ const DitheringPanel = () => {
       addFiles(droppedFiles);
     }
   }, [addFiles]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup object URLs when component unmounts
+      if (previewImage?.type === 'input' && previewImage.file.file) {
+        URL.revokeObjectURL(URL.createObjectURL(previewImage.file.file));
+      }
+    };
+  }, [previewImage]);
 
   const handleProcess = async () => {
     const algorithms = Object.entries(selectedAlgorithms)
@@ -297,8 +306,11 @@ const DitheringPanel = () => {
         <DialogContent className="max-w-4xl">
           <div className="relative w-full h-[80vh]">
             <img
-              src={previewImage?.type === 'input' ? URL.createObjectURL(previewImage.file) : previewImage?.url}
-              alt={previewImage?.name}
+              src={previewImage?.type === 'input' 
+                ? (previewImage.file.file ? URL.createObjectURL(previewImage.file.file) : '') 
+                : previewImage?.url
+              }
+              alt={previewImage?.type === 'input' ? previewImage.file.name : previewImage?.fileName}
               className="w-full h-full object-contain"
               style={{ transform: `scale(${zoom})` }}
             />
