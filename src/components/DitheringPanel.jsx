@@ -33,6 +33,17 @@ const DitheringPanel = () => {
     ]);
   }, []);
 
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const droppedFiles = Array.from(e.dataTransfer.files).filter(
+      file => file.type.startsWith('image/')
+    );
+    if (droppedFiles.length > 0) {
+      addFiles(droppedFiles);
+    }
+  }, [addFiles]);
+
   const handleProcess = async () => {
     const algorithms = Object.entries(selectedAlgorithms)
       .filter(([_, selected]) => selected)
@@ -140,16 +151,7 @@ const DitheringPanel = () => {
         <CardContent className="space-y-6">
           {/* File Upload Section */}
           <div
-            onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const droppedFiles = Array.from(e.dataTransfer.files).filter(
-                file => file.type.startsWith('image/')
-              );
-              if (droppedFiles.length > 0) {
-                addFiles(droppedFiles);
-              }
-            }}
+            onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
             className="border-2 border-dashed rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
           >
@@ -165,9 +167,9 @@ const DitheringPanel = () => {
               <Upload className="mx-auto h-12 w-12 text-gray-400" />
               <div>
                 <Button
+                  variant="default"
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white"
                   onClick={() => document.getElementById('file-input').click()}
-                  variant="outline"
-                  className="mx-auto"
                 >
                   Select Images
                 </Button>
@@ -195,7 +197,7 @@ const DitheringPanel = () => {
 
           {/* File List */}
           <div className="grid grid-cols-2 gap-4">
-            {files.map((file, index) => (
+            {files.map((file) => (
               <Card key={file.id} className="p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm truncate">{file.name}</span>
@@ -205,7 +207,7 @@ const DitheringPanel = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setPreviewImage({ type: 'input', file, index })}
+                    onClick={() => setPreviewImage({ type: 'input', file })}
                   >
                     Preview
                   </Button>
@@ -279,10 +281,10 @@ const DitheringPanel = () => {
               </div>
               {selectedResults.size > 0 && (
                 <Button
-                  className="w-full"
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white mt-4"
                   onClick={handleBatchDownload}
                 >
-                  Download Selected ({selectedResults.size})
+                  Download All Selected ({selectedResults.size})
                 </Button>
               )}
             </div>
