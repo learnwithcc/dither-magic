@@ -2,8 +2,19 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Upload, Image, Check, Loader2, ZoomIn, ZoomOut, Download, X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { 
+  Upload, 
+  Image, 
+  Check, 
+  Loader2, 
+  ZoomIn, 
+  ZoomOut, 
+  Download, 
+  Trash2,
+  ChevronLeft,
+  ChevronRight
+} from "lucide-react";
 import JSZip from 'jszip';
 
 const DitheringPanel = () => {
@@ -43,6 +54,67 @@ const DitheringPanel = () => {
       addFiles(droppedFiles);
     }
   }, [addFiles]);
+
+  const handleNavigatePrev = () => {
+    if (!previewImage) return;
+    
+    const items = previewImage.type === 'input' ? files : results;
+    const currentIndex = items.findIndex(item => 
+      previewImage.type === 'input' 
+        ? item.id === previewImage.file.id
+        : item.id === previewImage.id
+    );
+    
+    if (currentIndex > 0) {
+      const prevItem = items[currentIndex - 1];
+      setPreviewImage(
+        previewImage.type === 'input'
+          ? { type: 'input', file: prevItem }
+          : { ...prevItem, type: 'output' }
+      );
+    }
+  };
+
+  const handleNavigateNext = () => {
+    if (!previewImage) return;
+    
+    const items = previewImage.type === 'input' ? files : results;
+    const currentIndex = items.findIndex(item => 
+      previewImage.type === 'input' 
+        ? item.id === previewImage.file.id
+        : item.id === previewImage.id
+    );
+    
+    if (currentIndex < items.length - 1) {
+      const nextItem = items[currentIndex + 1];
+      setPreviewImage(
+        previewImage.type === 'input'
+          ? { type: 'input', file: nextItem }
+          : { ...nextItem, type: 'output' }
+      );
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!previewImage) return;
+      
+      switch(e.key) {
+        case 'ArrowLeft':
+          handleNavigatePrev();
+          break;
+        case 'ArrowRight':
+          handleNavigateNext();
+          break;
+        case 'Escape':
+          setPreviewImage(null);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewImage]);
 
   useEffect(() => {
     return () => {
@@ -215,16 +287,20 @@ const DitheringPanel = () => {
                 <div className="mt-2 flex space-x-2">
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
+                    className="flex-1"
                     onClick={() => setPreviewImage({ type: 'input', file })}
                   >
+                    <Image className="h-4 w-4 mr-2" />
                     Preview
                   </Button>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="destructive"
+                    className="flex-1"
                     onClick={() => setFiles(prev => prev.filter(f => f.id !== file.id))}
                   >
+                    <Trash2 className="h-4 w-4 mr-2" />
                     Remove
                   </Button>
                 </div>
@@ -279,9 +355,10 @@ const DitheringPanel = () => {
                         onClick={() => setPreviewImage({ ...result, type: 'output' })}
                       />
                       <Button
-                        className="w-full"
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white"
                         onClick={() => handleDownload(result)}
                       >
+                        <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
                     </div>
@@ -303,40 +380,55 @@ const DitheringPanel = () => {
 
       {/* Preview Modal */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl">
-          <div className="relative w-full h-[80vh]">
+        <DialogContent className="max-w-4xl p-0">
+          <DialogTitle className="sr-only">Image Preview</DialogTitle>
+          <div className="relative w-full h-[80vh] flex items-center justify-center bg-black/50">
             <img
               src={previewImage?.type === 'input' 
-                ? (previewImage.file.file ? URL.createObjectURL(previewImage.file.file) : '') 
+                ? URL.createObjectURL(previewImage.file.file)
                 : previewImage?.url
               }
               alt={previewImage?.type === 'input' ? previewImage.file.name : previewImage?.fileName}
-              className="w-full h-full object-contain"
+              className="max-w-full max-h-full object-contain"
               style={{ transform: `scale(${zoom})` }}
             />
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4">
+            <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="pointer-events-auto"
+                onClick={() => handleNavigatePrev()}
+              >
+                <ChevronLeft className="h-8 w-8 text-white" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="pointer-events-auto"
+                onClick={() => handleNavigateNext()}
+              >
+                <ChevronRight className="h-8 w-8 text-white" />
+              </Button>
+            </div>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-black/20 p-2 rounded-lg">
               <Button
                 variant="secondary"
+                size="icon"
                 onClick={() => setZoom(prev => Math.max(0.5, prev - 0.25))}
                 disabled={zoom <= 0.5}
               >
                 <ZoomOut className="h-4 w-4" />
               </Button>
+              <span className="text-white">{Math.round(zoom * 100)}%</span>
               <Button
                 variant="secondary"
+                size="icon"
                 onClick={() => setZoom(prev => Math.min(MAX_ZOOM, prev + 0.25))}
                 disabled={zoom >= MAX_ZOOM}
               >
                 <ZoomIn className="h-4 w-4" />
               </Button>
             </div>
-            <Button
-              variant="ghost"
-              className="absolute top-4 right-4"
-              onClick={() => setPreviewImage(null)}
-            >
-              <X className="h-6 w-6" />
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
