@@ -33,15 +33,23 @@ const DitheringPanel = () => {
   const MAX_ZOOM = 5;
 
   const addFiles = useCallback((newFiles) => {
+    const imageFiles = Array.from(newFiles).filter(
+      file => file.type.startsWith('image/')
+    );
     setFiles(prev => [
       ...prev,
-      ...newFiles.map(file => ({
+      ...imageFiles.map(file => ({
         id: Math.random().toString(36).substr(2, 9),
         file,
         name: file.name,
         status: 'ready'
       }))
     ]);
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
   }, []);
 
   const handleDrop = useCallback((e) => {
@@ -233,7 +241,7 @@ const DitheringPanel = () => {
           {/* File Upload Section */}
           <div
             onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
+            onDragOver={handleDragOver}
             className="border-2 border-dashed rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
           >
             <input
@@ -286,17 +294,17 @@ const DitheringPanel = () => {
                 </div>
                 <div className="mt-2 flex space-x-2">
                   <Button
-                    size="sm"
                     variant="secondary"
-                    className="flex-1"
+                    size="sm"
+                    className="flex-1 bg-gray-100 hover:bg-gray-200"
                     onClick={() => setPreviewImage({ type: 'input', file })}
                   >
                     <Image className="h-4 w-4 mr-2" />
                     Preview
                   </Button>
                   <Button
-                    size="sm"
                     variant="destructive"
+                    size="sm"
                     className="flex-1"
                     onClick={() => setFiles(prev => prev.filter(f => f.id !== file.id))}
                   >
@@ -311,13 +319,13 @@ const DitheringPanel = () => {
           {/* Process Button */}
           {files.length > 0 && (
             <Button
-              className="w-full"
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 text-lg"
               disabled={processing || !Object.values(selectedAlgorithms).some(Boolean)}
               onClick={handleProcess}
             >
               {processing ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Processing...
                 </>
               ) : (
@@ -380,9 +388,8 @@ const DitheringPanel = () => {
 
       {/* Preview Modal */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl p-0">
-          <DialogTitle className="sr-only">Image Preview</DialogTitle>
-          <div className="relative w-full h-[80vh] flex items-center justify-center bg-black/50">
+        <DialogContent className="fixed inset-0 flex items-center justify-center bg-black/50 p-0">
+          <div className="relative w-full h-full max-w-4xl max-h-[90vh] mx-auto flex items-center justify-center">
             <img
               src={previewImage?.type === 'input' 
                 ? URL.createObjectURL(previewImage.file.file)
