@@ -126,7 +126,6 @@ const DitheringPanel = () => {
 
   useEffect(() => {
     return () => {
-      // Cleanup object URLs when component unmounts
       if (previewImage?.type === 'input' && previewImage.file.file) {
         URL.revokeObjectURL(URL.createObjectURL(previewImage.file.file));
       }
@@ -270,18 +269,39 @@ const DitheringPanel = () => {
           </div>
 
           {/* Algorithm Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            {Object.entries(selectedAlgorithms).map(([algo, checked]) => (
-              <label key={algo} className="flex items-center space-x-2">
-                <Checkbox
-                  checked={checked}
-                  onCheckedChange={(checked) =>
-                    setSelectedAlgorithms(prev => ({...prev, [algo]: checked}))
-                  }
-                />
-                <span className="capitalize">{algo.replace('-', ' ')}</span>
-              </label>
-            ))}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Select Algorithms</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const allChecked = Object.values(selectedAlgorithms).every(Boolean);
+                  setSelectedAlgorithms(prev => {
+                    const newState = {};
+                    Object.keys(prev).forEach(key => {
+                      newState[key] = !allChecked;
+                    });
+                    return newState;
+                  });
+                }}
+              >
+                {Object.values(selectedAlgorithms).every(Boolean) ? 'Deselect All' : 'Select All'}
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {Object.entries(selectedAlgorithms).map(([algo, checked]) => (
+                <label key={algo} className="flex items-center space-x-2">
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(checked) =>
+                      setSelectedAlgorithms(prev => ({...prev, [algo]: checked}))
+                    }
+                  />
+                  <span className="capitalize">{algo.replace('-', ' ')}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* File List */}
@@ -337,7 +357,23 @@ const DitheringPanel = () => {
           {/* Results Section */}
           {results.length > 0 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Results</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Results</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const allSelected = results.every(result => selectedResults.has(result.id));
+                    if (allSelected) {
+                      setSelectedResults(new Set());
+                    } else {
+                      setSelectedResults(new Set(results.map(result => result.id)));
+                    }
+                  }}
+                >
+                  {results.every(result => selectedResults.has(result.id)) ? 'Deselect All' : 'Select All'}
+                </Button>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 {results.map((result) => (
                   <Card key={result.id} className="p-4">
