@@ -17,6 +17,13 @@ import {
 } from "lucide-react";
 import JSZip from 'jszip';
 
+const algorithmIcons = {
+  'floyd-steinberg': '/static/img/algorithms/floyd-steinberg.svg',
+  'ordered': '/static/img/algorithms/ordered.svg',
+  'atkinson': '/static/img/algorithms/atkinson.svg',
+  'bayer': '/static/img/algorithms/bayer.svg'
+};
+
 const DitheringPanel = () => {
   const [files, setFiles] = useState([]);
   const [selectedAlgorithms, setSelectedAlgorithms] = useState(() => {
@@ -295,16 +302,21 @@ const DitheringPanel = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               {Object.entries(selectedAlgorithms).map(([algo, checked]) => (
-                <label key={algo} className="flex items-center space-x-2">
+                <label key={algo} className="flex items-center space-x-3">
                   <Checkbox
                     checked={checked}
                     onCheckedChange={(checked) =>
                       setSelectedAlgorithms(prev => {
-                      const newState = {...prev, [algo]: checked};
-                      localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
-                      return newState;
-                    })
+                        const newState = {...prev, [algo]: checked};
+                        localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
+                        return newState;
+                      })
                     }
+                  />
+                  <img 
+                    src={algorithmIcons[algo]} 
+                    alt={`${algo} pattern`} 
+                    className="w-6 h-6"
                   />
                   <span className="capitalize">{algo.replace('-', ' ')}</span>
                 </label>
