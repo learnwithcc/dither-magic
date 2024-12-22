@@ -3,20 +3,19 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import {
-  Upload,
-  Image,
-  Check,
-  Loader2,
-  ZoomIn,
-  ZoomOut,
-  Download,
+import { 
+  Upload, 
+  Image, 
+  Check, 
+  Loader2, 
+  ZoomIn, 
+  ZoomOut, 
+  Download, 
   Trash2,
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
 import JSZip from 'jszip';
-import { ImageCompareSlider } from "@/components/ui/image-compare-slider";
 
 const algorithmIcons = {
   'floyd-steinberg': '/static/img/algorithms/floyd-steinberg.svg',
@@ -76,14 +75,14 @@ const DitheringPanel = () => {
 
   const handleNavigatePrev = () => {
     if (!previewImage) return;
-
+    
     const items = previewImage.type === 'input' ? files : results;
-    const currentIndex = items.findIndex(item =>
-      previewImage.type === 'input'
+    const currentIndex = items.findIndex(item => 
+      previewImage.type === 'input' 
         ? item.id === previewImage.file.id
         : item.id === previewImage.id
     );
-
+    
     if (currentIndex > 0) {
       const prevItem = items[currentIndex - 1];
       setPreviewImage(
@@ -96,14 +95,14 @@ const DitheringPanel = () => {
 
   const handleNavigateNext = () => {
     if (!previewImage) return;
-
+    
     const items = previewImage.type === 'input' ? files : results;
-    const currentIndex = items.findIndex(item =>
-      previewImage.type === 'input'
+    const currentIndex = items.findIndex(item => 
+      previewImage.type === 'input' 
         ? item.id === previewImage.file.id
         : item.id === previewImage.id
     );
-
+    
     if (currentIndex < items.length - 1) {
       const nextItem = items[currentIndex + 1];
       setPreviewImage(
@@ -117,8 +116,8 @@ const DitheringPanel = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!previewImage) return;
-
-      switch (e.key) {
+      
+      switch(e.key) {
         case 'ArrowLeft':
           handleNavigatePrev();
           break;
@@ -308,15 +307,15 @@ const DitheringPanel = () => {
                     checked={checked}
                     onCheckedChange={(checked) =>
                       setSelectedAlgorithms(prev => {
-                        const newState = { ...prev, [algo]: checked };
+                        const newState = {...prev, [algo]: checked};
                         localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
                         return newState;
                       })
                     }
                   />
-                  <img
-                    src={algorithmIcons[algo]}
-                    alt={`${algo} pattern`}
+                  <img 
+                    src={algorithmIcons[algo]} 
+                    alt={`${algo} pattern`} 
                     className="w-6 h-6"
                   />
                   <span className="capitalize">{algo.replace('-', ' ')}</span>
@@ -447,26 +446,15 @@ const DitheringPanel = () => {
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="fixed inset-0 flex items-center justify-center bg-black/50 p-0">
           <div className="relative w-full h-full max-w-4xl max-h-[90vh] mx-auto flex items-center justify-center">
-            {previewImage?.type === 'output' ? (
-              <ImageCompareSlider
-                originalImage={URL.createObjectURL(
-                  files.find(f => f.name === previewImage.fileName)?.file
-                )}
-                processedImage={previewImage.url}
-                className="max-w-full max-h-full"
-              />
-            ) : (
-              <img
-                src={previewImage?.type === 'input'
-                  ? URL.createObjectURL(previewImage.file.file)
-                  : previewImage?.url
-                }
-                alt={previewImage?.type === 'input' ? previewImage.file.name : previewImage?.fileName}
-                className="max-w-full max-h-full object-contain"
-                style={{ transform: `scale(${zoom})` }}
-              />
-            )}
-
+            <img
+              src={previewImage?.type === 'input' 
+                ? URL.createObjectURL(previewImage.file.file)
+                : previewImage?.url
+              }
+              alt={previewImage?.type === 'input' ? previewImage.file.name : previewImage?.fileName}
+              className="max-w-full max-h-full object-contain"
+              style={{ transform: `scale(${zoom})` }}
+            />
             <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
               <Button
                 variant="ghost"
@@ -485,28 +473,25 @@ const DitheringPanel = () => {
                 <ChevronRight className="h-8 w-8 text-white" />
               </Button>
             </div>
-
-            {previewImage?.type === 'input' && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-black/20 p-2 rounded-lg">
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  onClick={() => setZoom(prev => Math.max(0.5, prev - 0.25))}
-                  disabled={zoom <= 0.5}
-                >
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-                <span className="text-white">{Math.round(zoom * 100)}%</span>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  onClick={() => setZoom(prev => Math.min(MAX_ZOOM, prev + 0.25))}
-                  disabled={zoom >= MAX_ZOOM}
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-black/20 p-2 rounded-lg">
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={() => setZoom(prev => Math.max(0.5, prev - 0.25))}
+                disabled={zoom <= 0.5}
+              >
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+              <span className="text-white">{Math.round(zoom * 100)}%</span>
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={() => setZoom(prev => Math.min(MAX_ZOOM, prev + 0.25))}
+                disabled={zoom >= MAX_ZOOM}
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
