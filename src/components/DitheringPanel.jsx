@@ -2,10 +2,10 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { 
   Upload, 
-  Image as ImageIcon, 
+  Image, 
   Check, 
   Loader2, 
   ZoomIn, 
@@ -13,17 +13,8 @@ import {
   Download, 
   Trash2,
   ChevronLeft,
-  ChevronRight,
-  Share2
+  ChevronRight
 } from "lucide-react";
-import {
-  FacebookShareButton,
-  TwitterShareButton,
-  LinkedinShareButton,
-  FacebookIcon,
-  TwitterIcon,
-  LinkedinIcon,
-} from 'react-share';
 import JSZip from 'jszip';
 
 const algorithmIcons = {
@@ -249,33 +240,14 @@ const DitheringPanel = () => {
     });
   }, []);
 
-  const shareUrl = window.location.href;
-  const shareTitle = 'Check out this awesome image dithering tool!';
-
-  const SharingButtons = ({ className = '' }) => (
-    <div className={`flex space-x-2 ${className}`}>
-      <FacebookShareButton url={shareUrl} quote={shareTitle}>
-        <FacebookIcon size={32} round />
-      </FacebookShareButton>
-      <TwitterShareButton url={shareUrl} title={shareTitle}>
-        <TwitterIcon size={32} round />
-      </TwitterShareButton>
-      <LinkedinShareButton url={shareUrl} title={shareTitle}>
-        <LinkedinIcon size={32} round />
-      </LinkedinShareButton>
-    </div>
-  );
-
   return (
     <>
       <Card className="w-full max-w-3xl mx-auto">
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Image Dithering</CardTitle>
-            <SharingButtons />
-          </div>
+          <CardTitle>Image Dithering</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* File Upload Section */}
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -306,6 +278,7 @@ const DitheringPanel = () => {
             </div>
           </div>
 
+          {/* Algorithm Selection */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Select Algorithms</h3>
@@ -351,6 +324,7 @@ const DitheringPanel = () => {
             </div>
           </div>
 
+          {/* File List */}
           <div className="grid grid-cols-2 gap-4">
             {files.map((file) => (
               <Card key={file.id} className="p-4">
@@ -365,7 +339,7 @@ const DitheringPanel = () => {
                     className="flex-1 bg-gray-100 hover:bg-gray-200"
                     onClick={() => setPreviewImage({ type: 'input', file })}
                   >
-                    <ImageIcon className="h-4 w-4 mr-2" />
+                    <Image className="h-4 w-4 mr-2" />
                     Preview
                   </Button>
                   <Button
@@ -382,6 +356,7 @@ const DitheringPanel = () => {
             ))}
           </div>
 
+          {/* Process Button */}
           {files.length > 0 && (
             <Button
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 text-lg"
@@ -399,45 +374,25 @@ const DitheringPanel = () => {
             </Button>
           )}
 
+          {/* Results Section */}
           {results.length > 0 && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Results</h3>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const allSelected = results.every(result => selectedResults.has(result.id));
-                      if (allSelected) {
-                        setSelectedResults(new Set());
-                      } else {
-                        setSelectedResults(new Set(results.map(result => result.id)));
-                      }
-                    }}
-                  >
-                    {results.every(result => selectedResults.has(result.id)) ? 'Deselect All' : 'Select All'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const selectedUrls = results
-                        .filter(result => selectedResults.has(result.id))
-                        .map(result => result.url);
-                      if (selectedUrls.length > 0) {
-                        navigator.share({
-                          title: 'Dithered Images',
-                          text: 'Check out these dithered images!',
-                          files: selectedUrls.map(url => fetch(url).then(res => res.blob())),
-                        }).catch(console.error);
-                      }
-                    }}
-                  >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share Selected
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const allSelected = results.every(result => selectedResults.has(result.id));
+                    if (allSelected) {
+                      setSelectedResults(new Set());
+                    } else {
+                      setSelectedResults(new Set(results.map(result => result.id)));
+                    }
+                  }}
+                >
+                  {results.every(result => selectedResults.has(result.id)) ? 'Deselect All' : 'Select All'}
+                </Button>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {results.map((result) => (
@@ -487,6 +442,7 @@ const DitheringPanel = () => {
         </CardContent>
       </Card>
 
+      {/* Preview Modal */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="fixed inset-0 flex items-center justify-center bg-black/50 p-0">
           <div className="relative w-full h-full max-w-4xl max-h-[90vh] mx-auto flex items-center justify-center">

@@ -6,14 +6,6 @@ import io
 from dithering import floyd_steinberg_dither, ordered_dither, atkinson_dither, bayer_dither
 from api import api_bp
 
-# Ensure static directory structure exists
-STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-IMG_DIR = os.path.join(STATIC_DIR, 'img')
-ALGORITHMS_DIR = os.path.join(IMG_DIR, 'algorithms')
-
-for directory in [STATIC_DIR, IMG_DIR, ALGORITHMS_DIR]:
-    os.makedirs(directory, exist_ok=True)
-
 app = Flask(__name__, static_folder='static')
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32MB max upload size
 app.config['UPLOAD_FOLDER'] = '/tmp'
@@ -31,26 +23,22 @@ def serve(path):
         return send_from_directory(app.static_folder, path)
     return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/static/img/<path:filename>')
-def serve_static(filename):
-    return send_from_directory(os.path.join(app.static_folder, 'img'), filename)
-
 @app.route('/dither', methods=['POST'])
 def dither_image():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-
+        
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-
+        
     if not allowed_file(file.filename):
         return jsonify({'error': 'File type not allowed'}), 400
 
     try:
         algorithm = request.form.get('algorithm', 'floyd-steinberg')
         img = Image.open(file.stream).convert('RGB')  # Convert to RGB to ensure compatibility
-
+        
         if algorithm == 'floyd-steinberg':
             dithered = floyd_steinberg_dither(img)
         elif algorithm == 'ordered':
