@@ -19,11 +19,14 @@ import JSZip from 'jszip';
 
 const DitheringPanel = () => {
   const [files, setFiles] = useState([]);
-  const [selectedAlgorithms, setSelectedAlgorithms] = useState({
-    'floyd-steinberg': true,
-    'ordered': false,
-    'atkinson': false,
-    'bayer': false
+  const [selectedAlgorithms, setSelectedAlgorithms] = useState(() => {
+    const saved = localStorage.getItem('selectedAlgorithms');
+    return saved ? JSON.parse(saved) : {
+      'floyd-steinberg': true,
+      'ordered': false,
+      'atkinson': false,
+      'bayer': false
+    };
   });
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState([]);
@@ -282,6 +285,7 @@ const DitheringPanel = () => {
                     Object.keys(prev).forEach(key => {
                       newState[key] = !allChecked;
                     });
+                    localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
                     return newState;
                   });
                 }}
@@ -295,7 +299,11 @@ const DitheringPanel = () => {
                   <Checkbox
                     checked={checked}
                     onCheckedChange={(checked) =>
-                      setSelectedAlgorithms(prev => ({...prev, [algo]: checked}))
+                      setSelectedAlgorithms(prev => {
+                      const newState = {...prev, [algo]: checked};
+                      localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
+                      return newState;
+                    })
                     }
                   />
                   <span className="capitalize">{algo.replace('-', ' ')}</span>
