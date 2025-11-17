@@ -1,3 +1,11 @@
+"""
+Flask application for image dithering web interface.
+
+This module serves the React frontend and provides the main dithering
+endpoint for the web application. It supports multiple image formats
+and dithering algorithms with a 32MB file size limit.
+"""
+
 import os
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 from werkzeug.utils import secure_filename
@@ -14,17 +22,60 @@ app.register_blueprint(api_bp, url_prefix='/api')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 def allowed_file(filename):
+    """
+    Check if a filename has an allowed extension.
+
+    Args:
+        filename (str): The filename to check.
+
+    Returns:
+        bool: True if the file extension is in ALLOWED_EXTENSIONS, False otherwise.
+    """
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
+    """
+    Serve the React application and static assets.
+
+    This catch-all route serves static files when they exist, otherwise
+    returns index.html to enable client-side routing.
+
+    Args:
+        path (str): The requested URL path.
+
+    Returns:
+        Response: Either the requested static file or index.html.
+    """
     if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/dither', methods=['POST'])
 def dither_image():
+    """
+    Process an uploaded image with the specified dithering algorithm.
+
+    Accepts multipart/form-data with an image file and algorithm parameter.
+    Converts images to grayscale and applies the selected dithering algorithm.
+
+    Form Parameters:
+        file (FileStorage): The image file to process (PNG, JPEG, GIF, or WebP).
+        algorithm (str, optional): The dithering algorithm to use.
+            Options: 'floyd-steinberg' (default), 'ordered', 'atkinson', 'bayer'.
+
+    Returns:
+        Response: PNG image file with dithered result, or JSON error message.
+
+    Error Codes:
+        400: Missing file, invalid file type, or invalid algorithm.
+        500: Image processing error.
+
+    Example:
+        curl -X POST -F "file=@photo.jpg" -F "algorithm=floyd-steinberg" \\
+             http://localhost:5000/dither -o output.png
+    """
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
         

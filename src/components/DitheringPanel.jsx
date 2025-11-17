@@ -3,20 +3,24 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { 
-  Upload, 
-  Image, 
-  Check, 
-  Loader2, 
-  ZoomIn, 
-  ZoomOut, 
-  Download, 
+import {
+  Upload,
+  Image,
+  Check,
+  Loader2,
+  ZoomIn,
+  ZoomOut,
+  Download,
   Trash2,
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
 import JSZip from 'jszip';
 
+/**
+ * Map of algorithm identifiers to their corresponding icon paths.
+ * @type {Object.<string, string>}
+ */
 const algorithmIcons = {
   'floyd-steinberg': '/static/img/algorithms/floyd-steinberg.svg',
   'ordered': '/static/img/algorithms/ordered.svg',
@@ -24,6 +28,21 @@ const algorithmIcons = {
   'bayer': '/static/img/algorithms/bayer.svg'
 };
 
+/**
+ * Main dithering panel component for the application.
+ *
+ * Provides a complete interface for:
+ * - Uploading multiple images via file input or drag-and-drop
+ * - Selecting one or more dithering algorithms
+ * - Batch processing images with selected algorithms
+ * - Previewing input and output images with zoom controls
+ * - Downloading individual results or multiple results as a ZIP file
+ *
+ * State persists algorithm selection in localStorage for user convenience.
+ *
+ * @component
+ * @returns {React.Element} The dithering panel interface
+ */
 const DitheringPanel = () => {
   const [files, setFiles] = useState([]);
   const [selectedAlgorithms, setSelectedAlgorithms] = useState(() => {
@@ -42,6 +61,12 @@ const DitheringPanel = () => {
   const [selectedResults, setSelectedResults] = useState(new Set());
   const MAX_ZOOM = 5;
 
+  /**
+   * Adds new image files to the upload queue.
+   * Filters for image files only and assigns unique IDs.
+   *
+   * @param {FileList|File[]} newFiles - Files to add to the queue
+   */
   const addFiles = useCallback((newFiles) => {
     const imageFiles = Array.from(newFiles).filter(
       file => file.type.startsWith('image/')
@@ -57,11 +82,23 @@ const DitheringPanel = () => {
     ]);
   }, []);
 
+  /**
+   * Handles drag over event for file drag-and-drop.
+   * Prevents default behavior to allow drop.
+   *
+   * @param {DragEvent} e - The drag event
+   */
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
 
+  /**
+   * Handles file drop event for drag-and-drop upload.
+   * Filters for image files and adds them to the queue.
+   *
+   * @param {DragEvent} e - The drop event
+   */
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
