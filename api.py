@@ -6,12 +6,20 @@ external applications to process images using the dithering algorithms.
 Separate from the main web interface endpoint for clearer API versioning.
 """
 
+import json
 from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 from PIL import Image
 import io
 import os
 from dithering import floyd_steinberg_dither, ordered_dither, atkinson_dither, bayer_dither
+from palettes import get_palette
+from color_dithering import (
+    floyd_steinberg_color_dither,
+    ordered_color_dither,
+    atkinson_color_dither,
+    bayer_color_dither
+)
 
 api_bp = Blueprint('api', __name__)
 
@@ -34,13 +42,17 @@ def api_dither_image():
     """
     Public API endpoint for image dithering.
 
-    Processes an uploaded image file with the specified dithering algorithm.
+    Processes an uploaded image file with the specified dithering algorithm and color palette.
     The image is temporarily saved, processed, and then deleted.
 
     Form Parameters:
         file (FileStorage): The image file to process (PNG, JPEG, GIF, or WebP).
         algorithm (str, optional): The dithering algorithm to use.
             Options: 'floyd-steinberg' (default), 'ordered', 'atkinson', 'bayer'.
+        palette (str, optional): The color palette to use.
+            Options: 'bw' (default), 'gameboy', 'nes', 'c64', 'sepia', 'nord', etc.
+        custom_palette (str, optional): JSON string of RGB color arrays for custom palette.
+            Example: '[[255,0,0], [0,255,0], [0,0,255]]'
 
     Returns:
         Response: PNG image file with dithered result, or JSON error message.
@@ -50,7 +62,7 @@ def api_dither_image():
         500: Image processing error.
 
     Example:
-        curl -X POST -F "file=@photo.jpg" -F "algorithm=atkinson" \\
+        curl -X POST -F "file=@photo.jpg" -F "algorithm=atkinson" -F "palette=gameboy" \\
              https://api.example.com/api/dither -o dithered.png
     """
     if 'file' not in request.files:
@@ -64,19 +76,46 @@ def api_dither_image():
         file.save(filepath)
 
         algorithm = request.form.get('algorithm', 'floyd-steinberg')
-        
+        palette_id = request.form.get('palette', 'bw')
+        custom_palette = request.form.get('custom_palette')
+
         try:
             with Image.open(filepath) as img:
-                if algorithm == 'floyd-steinberg':
-                    dithered = floyd_steinberg_dither(img)
-                elif algorithm == 'ordered':
-                    dithered = ordered_dither(img)
-                elif algorithm == 'atkinson':
-                    dithered = atkinson_dither(img)
-                elif algorithm == 'bayer':
-                    dithered = bayer_dither(img)
+                img = img.convert('RGB')
+
+                # Get palette colors
+                if custom_palette:
+                    palette = [tuple(c) for c in json.loads(custom_palette)]
                 else:
-                    return jsonify({'error': 'Invalid algorithm'}), 400
+                    palette = get_palette(palette_id)
+
+                # Use color dithering if not B&W palette
+                use_color = palette_id != 'bw' or custom_palette
+
+                if use_color:
+                    # Use color dithering functions
+                    if algorithm == 'floyd-steinberg':
+                        dithered = floyd_steinberg_color_dither(img, palette)
+                    elif algorithm == 'ordered':
+                        dithered = ordered_color_dither(img, palette)
+                    elif algorithm == 'atkinson':
+                        dithered = atkinson_color_dither(img, palette)
+                    elif algorithm == 'bayer':
+                        dithered = bayer_color_dither(img, palette)
+                    else:
+                        return jsonify({'error': 'Invalid algorithm'}), 400
+                else:
+                    # Use original B&W functions for backwards compatibility
+                    if algorithm == 'floyd-steinberg':
+                        dithered = floyd_steinberg_dither(img)
+                    elif algorithm == 'ordered':
+                        dithered = ordered_dither(img)
+                    elif algorithm == 'atkinson':
+                        dithered = atkinson_dither(img)
+                    elif algorithm == 'bayer':
+                        dithered = bayer_dither(img)
+                    else:
+                        return jsonify({'error': 'Invalid algorithm'}), 400
 
                 output = io.BytesIO()
                 dithered.save(output, format='PNG')

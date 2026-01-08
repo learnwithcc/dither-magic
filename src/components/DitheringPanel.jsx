@@ -13,9 +13,11 @@ import {
   Download,
   Trash2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Palette
 } from "lucide-react";
 import JSZip from 'jszip';
+import PaletteSelector, { parseHexColors } from './PaletteSelector';
 
 /**
  * Map of algorithm identifiers to their corresponding icon paths.
@@ -60,6 +62,13 @@ const DitheringPanel = () => {
   const [zoom, setZoom] = useState(1);
   const [selectedResults, setSelectedResults] = useState(new Set());
   const MAX_ZOOM = 5;
+
+  // Palette state
+  const [palettes, setPalettes] = useState([]);
+  const [selectedPalette, setSelectedPalette] = useState(() => {
+    return localStorage.getItem('selectedPalette') || 'bw';
+  });
+  const [customPalette, setCustomPalette] = useState('');
 
   /**
    * Adds new image files to the upload queue.
@@ -109,6 +118,19 @@ const DitheringPanel = () => {
       addFiles(droppedFiles);
     }
   }, [addFiles]);
+
+  // Fetch palettes on mount
+  useEffect(() => {
+    fetch('/api/palettes')
+      .then(res => res.json())
+      .then(setPalettes)
+      .catch(console.error);
+  }, []);
+
+  // Persist palette selection
+  useEffect(() => {
+    localStorage.setItem('selectedPalette', selectedPalette);
+  }, [selectedPalette]);
 
   const handleNavigatePrev = () => {
     if (!previewImage) return;
@@ -189,6 +211,10 @@ const DitheringPanel = () => {
       return;
     }
 
+    // Parse custom palette if provided
+    const customColors = parseHexColors(customPalette);
+    const useCustomPalette = customColors.length >= 2;
+
     setProcessing(true);
     const newResults = [];
 
@@ -198,6 +224,11 @@ const DitheringPanel = () => {
           const formData = new FormData();
           formData.append('file', fileData.file);
           formData.append('algorithm', algorithm);
+          formData.append('palette', selectedPalette);
+
+          if (useCustomPalette) {
+            formData.append('custom_palette', JSON.stringify(customColors));
+          }
 
           try {
             const response = await fetch('/dither', {
@@ -210,10 +241,16 @@ const DitheringPanel = () => {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
 
+            // Get palette name for display
+            const paletteName = useCustomPalette
+              ? 'Custom'
+              : palettes.find(p => p.id === selectedPalette)?.name || selectedPalette;
+
             newResults.push({
-              id: `${fileData.id}-${algorithm}`,
+              id: `${fileData.id}-${algorithm}-${selectedPalette}`,
               fileName: fileData.name,
               algorithm,
+              palette: paletteName,
               url
             });
           } catch (error) {
@@ -350,15 +387,30 @@ const DitheringPanel = () => {
                       })
                     }
                   />
-                  <img 
-                    src={algorithmIcons[algo]} 
-                    alt={`${algo} pattern`} 
+                  <img
+                    src={algorithmIcons[algo]}
+                    alt={`${algo} pattern`}
                     className="w-6 h-6"
                   />
                   <span className="capitalize">{algo.replace('-', ' ')}</span>
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* Color Palette Selection */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Palette className="h-5 w-5 text-gray-500" />
+              <h3 className="text-lg font-semibold">Color Palette</h3>
+            </div>
+            <PaletteSelector
+              palettes={palettes}
+              selectedPalette={selectedPalette}
+              onSelect={setSelectedPalette}
+              customPalette={customPalette}
+              onCustomPaletteChange={setCustomPalette}
+            />
           </div>
 
           {/* File List */}
@@ -436,7 +488,14 @@ const DitheringPanel = () => {
                   <Card key={result.id} className="p-4">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm capitalize">{result.algorithm.replace('-', ' ')}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm capitalize">{result.algorithm.replace('-', ' ')}</span>
+                          {result.palette && (
+                            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                              {result.palette}
+                            </span>
+                          )}
+                        </div>
                         <Button
                           size="sm"
                           variant="outline"
