@@ -22,11 +22,29 @@ A single-page application for image dithering with multiple algorithms and a pub
 ### Backend Components
 
 #### Dithering Algorithms (`dithering.py`)
-Implements four different dithering algorithms:
+Implements 12 different dithering algorithms:
+
+**Error Diffusion (Classic)**
 - Floyd-Steinberg
-- Ordered Dithering
 - Atkinson
+
+**Error Diffusion (Extended)**
+- Stucki
+- Jarvis-Judice-Ninke
+- Burkes
+
+**Sierra Family**
+- Sierra (3-Row)
+- Sierra Two-Row
+- Sierra Lite
+
+**Ordered/Pattern**
+- Ordered Dithering
 - Bayer
+- Halftone
+
+**Modern**
+- Blue Noise
 
 Each algorithm is optimized for processing grayscale images using NumPy arrays for efficient computation.
 
@@ -65,7 +83,7 @@ Custom components built with Radix UI primitives:
 
 Visit the deployed application or run locally (see Development Setup below) to:
 1. Upload one or more images (drag-and-drop or click to browse)
-2. Select dithering algorithms (Floyd-Steinberg, Ordered, Atkinson, or Bayer)
+2. Select dithering algorithms (12 algorithms available including Floyd-Steinberg, Atkinson, Stucki, Jarvis, Sierra family, Halftone, Blue Noise, and more)
 3. Click "Process Images" to dither your images
 4. Download individual results or all results as a ZIP file
 
@@ -118,10 +136,18 @@ Process an image using specified dithering algorithm.
 - Body:
   - `file`: Image file (PNG, JPEG, GIF, WebP)
   - `algorithm`: String enum (optional, default: `floyd-steinberg`)
-    - `floyd-steinberg`
-    - `ordered`
-    - `atkinson`
-    - `bayer`
+    - `floyd-steinberg` - Classic error diffusion
+    - `ordered` - 4x4 threshold pattern
+    - `atkinson` - Mac classic style
+    - `bayer` - Regular dot pattern
+    - `stucki` - Smooth gradients
+    - `jarvis` - High detail preservation
+    - `burkes` - Balanced quality/speed
+    - `sierra` - Minimal artifacts
+    - `sierra-two-row` - Faster Sierra variant
+    - `sierra-lite` - Fastest Sierra
+    - `halftone` - Print-style dots
+    - `blue-noise` - Film grain aesthetic
 
 #### Response
 - Success (200): PNG image file
@@ -147,32 +173,74 @@ For more examples and client libraries, see [API_EXAMPLES.md](API_EXAMPLES.md).
 
 ### Dithering Algorithms Details
 
-#### Floyd-Steinberg
-- Error diffusion algorithm
-- Error distribution pattern:
-  ```
-      X   7/16
-  3/16 5/16 1/16
-  ```
+#### Error Diffusion Algorithms
 
-#### Ordered Dithering
+**Floyd-Steinberg**
+- Classic error diffusion algorithm
+- Error distribution: 7/16, 3/16, 5/16, 1/16
+- Good for general use
+
+**Atkinson**
+- Modified error diffusion (Mac classic style)
+- Distributes 6/8 of error (discards 2/8)
+- Preserves more contrast, brighter appearance
+
+**Stucki**
+- 3-row extended kernel
+- Smoother gradients, less visible patterns
+- Excellent for photographs
+
+**Jarvis-Judice-Ninke**
+- Large 3-row kernel optimized for photos
+- High-quality with excellent detail preservation
+- Best for detailed images
+
+**Burkes**
+- Simplified 2-row kernel
+- Good balance between speed and quality
+- Faster than Stucki/Jarvis
+
+**Sierra (3-Row)**
+- Full 3-row kernel
+- Excellent quality with minimal artifacts
+- Good for high-contrast images
+
+**Sierra Two-Row**
+- Simplified 2-row version
+- Faster while maintaining good quality
+
+**Sierra Lite**
+- Minimal 3-pixel kernel
+- Fastest Sierra variant
+- Good for quick previews
+
+#### Ordered Dithering Algorithms
+
+**Ordered Dithering**
 - Uses 4x4 threshold map
 - Fixed pattern dithering
 - Suitable for retro-style effects
 
-#### Atkinson
-- Modified error diffusion
-- Distributes 1/8 of error to neighbors
-- Preserves more contrast
-
-#### Bayer
+**Bayer**
 - Ordered dithering variant
 - Uses 4x4 Bayer matrix
 - Produces regular pattern
 
+**Halftone**
+- Classic print-style circular dots
+- Larger dots in dark areas
+- Artistic/print aesthetic
+
+#### Modern Techniques
+
+**Blue Noise**
+- Stochastic threshold texture
+- Even distribution without visible patterns
+- Film grain-like aesthetic
+
 ## Features
 
-- **Multiple Dithering Algorithms**: Floyd-Steinberg, Ordered, Atkinson, and Bayer
+- **12 Dithering Algorithms**: Floyd-Steinberg, Atkinson, Stucki, Jarvis, Burkes, Sierra family (3 variants), Ordered, Bayer, Halftone, and Blue Noise
 - **Batch Processing**: Process multiple images with multiple algorithms simultaneously
 - **Drag-and-Drop Upload**: Easy file upload with drag-and-drop support
 - **Image Preview**: Zoom and navigate through input and output images

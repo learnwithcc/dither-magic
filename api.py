@@ -12,14 +12,51 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 import io
 import os
-from dithering import floyd_steinberg_dither, ordered_dither, atkinson_dither, bayer_dither
+from dithering import (
+    floyd_steinberg_dither, ordered_dither, atkinson_dither, bayer_dither,
+    stucki_dither, jarvis_dither, burkes_dither,
+    sierra_dither, sierra_two_row_dither, sierra_lite_dither,
+    halftone_dither, blue_noise_dither
+)
 from palettes import get_palette
 from color_dithering import (
-    floyd_steinberg_color_dither,
-    ordered_color_dither,
-    atkinson_color_dither,
-    bayer_color_dither
+    floyd_steinberg_color_dither, ordered_color_dither,
+    atkinson_color_dither, bayer_color_dither,
+    stucki_color_dither, jarvis_color_dither, burkes_color_dither,
+    sierra_color_dither, sierra_two_row_color_dither, sierra_lite_color_dither,
+    halftone_color_dither, blue_noise_color_dither
 )
+
+# Algorithm mappings for cleaner routing
+BW_ALGORITHMS = {
+    'floyd-steinberg': floyd_steinberg_dither,
+    'ordered': ordered_dither,
+    'atkinson': atkinson_dither,
+    'bayer': bayer_dither,
+    'stucki': stucki_dither,
+    'jarvis': jarvis_dither,
+    'burkes': burkes_dither,
+    'sierra': sierra_dither,
+    'sierra-two-row': sierra_two_row_dither,
+    'sierra-lite': sierra_lite_dither,
+    'halftone': halftone_dither,
+    'blue-noise': blue_noise_dither
+}
+
+COLOR_ALGORITHMS = {
+    'floyd-steinberg': floyd_steinberg_color_dither,
+    'ordered': ordered_color_dither,
+    'atkinson': atkinson_color_dither,
+    'bayer': bayer_color_dither,
+    'stucki': stucki_color_dither,
+    'jarvis': jarvis_color_dither,
+    'burkes': burkes_color_dither,
+    'sierra': sierra_color_dither,
+    'sierra-two-row': sierra_two_row_color_dither,
+    'sierra-lite': sierra_lite_color_dither,
+    'halftone': halftone_color_dither,
+    'blue-noise': blue_noise_color_dither
+}
 
 api_bp = Blueprint('api', __name__)
 
@@ -92,30 +129,18 @@ def api_dither_image():
                 # Use color dithering if not B&W palette
                 use_color = palette_id != 'bw' or custom_palette
 
+                # Validate algorithm
+                if algorithm not in BW_ALGORITHMS:
+                    return jsonify({'error': 'Invalid algorithm'}), 400
+
                 if use_color:
                     # Use color dithering functions
-                    if algorithm == 'floyd-steinberg':
-                        dithered = floyd_steinberg_color_dither(img, palette)
-                    elif algorithm == 'ordered':
-                        dithered = ordered_color_dither(img, palette)
-                    elif algorithm == 'atkinson':
-                        dithered = atkinson_color_dither(img, palette)
-                    elif algorithm == 'bayer':
-                        dithered = bayer_color_dither(img, palette)
-                    else:
-                        return jsonify({'error': 'Invalid algorithm'}), 400
+                    dither_func = COLOR_ALGORITHMS[algorithm]
+                    dithered = dither_func(img, palette)
                 else:
                     # Use original B&W functions for backwards compatibility
-                    if algorithm == 'floyd-steinberg':
-                        dithered = floyd_steinberg_dither(img)
-                    elif algorithm == 'ordered':
-                        dithered = ordered_dither(img)
-                    elif algorithm == 'atkinson':
-                        dithered = atkinson_dither(img)
-                    elif algorithm == 'bayer':
-                        dithered = bayer_dither(img)
-                    else:
-                        return jsonify({'error': 'Invalid algorithm'}), 400
+                    dither_func = BW_ALGORITHMS[algorithm]
+                    dithered = dither_func(img)
 
                 output = io.BytesIO()
                 dithered.save(output, format='PNG')

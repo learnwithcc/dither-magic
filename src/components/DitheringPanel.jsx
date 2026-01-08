@@ -27,7 +27,15 @@ const algorithmIcons = {
   'floyd-steinberg': '/static/img/algorithms/floyd-steinberg.svg',
   'ordered': '/static/img/algorithms/ordered.svg',
   'atkinson': '/static/img/algorithms/atkinson.svg',
-  'bayer': '/static/img/algorithms/bayer.svg'
+  'bayer': '/static/img/algorithms/bayer.svg',
+  'stucki': '/static/img/algorithms/stucki.svg',
+  'jarvis': '/static/img/algorithms/jarvis.svg',
+  'burkes': '/static/img/algorithms/burkes.svg',
+  'sierra': '/static/img/algorithms/sierra.svg',
+  'sierra-two-row': '/static/img/algorithms/sierra-two-row.svg',
+  'sierra-lite': '/static/img/algorithms/sierra-lite.svg',
+  'halftone': '/static/img/algorithms/halftone.svg',
+  'blue-noise': '/static/img/algorithms/blue-noise.svg'
 };
 
 /**
@@ -49,12 +57,27 @@ const DitheringPanel = () => {
   const [files, setFiles] = useState([]);
   const [selectedAlgorithms, setSelectedAlgorithms] = useState(() => {
     const saved = localStorage.getItem('selectedAlgorithms');
-    return saved ? JSON.parse(saved) : {
+    // Default algorithms with new ones included
+    const defaults = {
       'floyd-steinberg': true,
       'ordered': false,
       'atkinson': false,
-      'bayer': false
+      'bayer': false,
+      'stucki': false,
+      'jarvis': false,
+      'burkes': false,
+      'sierra': false,
+      'sierra-two-row': false,
+      'sierra-lite': false,
+      'halftone': false,
+      'blue-noise': false
     };
+    if (saved) {
+      // Merge saved with defaults to ensure new algorithms are included
+      const parsed = JSON.parse(saved);
+      return { ...defaults, ...parsed };
+    }
+    return defaults;
   });
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState([]);
