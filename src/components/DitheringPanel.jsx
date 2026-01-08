@@ -14,8 +14,10 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Palette
+  Palette,
+  SplitSquareHorizontal
 } from "lucide-react";
+import ComparisonSlider from '@/components/ui/comparison-slider';
 import JSZip from 'jszip';
 import PaletteSelector, { parseHexColors } from './PaletteSelector';
 
@@ -84,6 +86,7 @@ const DitheringPanel = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [selectedResults, setSelectedResults] = useState(new Set());
+  const [comparisonMode, setComparisonMode] = useState(false);
   const MAX_ZOOM = 5;
 
   // Palette state
@@ -198,23 +201,34 @@ const DitheringPanel = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!previewImage) return;
-      
+
       switch(e.key) {
         case 'ArrowLeft':
-          handleNavigatePrev();
+          if (!comparisonMode) handleNavigatePrev();
           break;
         case 'ArrowRight':
-          handleNavigateNext();
+          if (!comparisonMode) handleNavigateNext();
           break;
         case 'Escape':
-          setPreviewImage(null);
+          if (comparisonMode) {
+            setComparisonMode(false);
+          } else {
+            setPreviewImage(null);
+          }
+          break;
+        case 'c':
+        case 'C':
+          // Toggle comparison mode with 'C' key (only for output images)
+          if (previewImage?.type === 'output') {
+            setComparisonMode(!comparisonMode);
+          }
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewImage]);
+  }, [previewImage, comparisonMode]);
 
   useEffect(() => {
     return () => {
@@ -243,6 +257,9 @@ const DitheringPanel = () => {
 
     try {
       for (const fileData of files) {
+        // Create URL for original image once per file
+        const originalUrl = URL.createObjectURL(fileData.file);
+
         for (const algorithm of algorithms) {
           const formData = new FormData();
           formData.append('file', fileData.file);
@@ -274,7 +291,8 @@ const DitheringPanel = () => {
               fileName: fileData.name,
               algorithm,
               palette: paletteName,
-              url
+              url,
+              originalUrl  // Store reference to original image
             });
           } catch (error) {
             console.error('Error processing file:', error);
@@ -531,12 +549,28 @@ const DitheringPanel = () => {
                           )}
                         </Button>
                       </div>
-                      <img
-                        src={result.url}
-                        alt={`${result.algorithm} - ${result.fileName}`}
-                        className="w-full h-32 object-cover rounded-md cursor-pointer"
-                        onClick={() => setPreviewImage({ ...result, type: 'output' })}
-                      />
+                      <div className="relative">
+                        <img
+                          src={result.url}
+                          alt={`${result.algorithm} - ${result.fileName}`}
+                          className="w-full h-32 object-cover rounded-md cursor-pointer"
+                          onClick={() => setPreviewImage({ ...result, type: 'output' })}
+                        />
+                        {/* Quick compare button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewImage({ ...result, type: 'output' });
+                            setComparisonMode(true);
+                          }}
+                          title="Compare with original"
+                        >
+                          <SplitSquareHorizontal className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <Button
                         className="w-full bg-blue-500 hover:bg-blue-600 text-white"
                         onClick={() => handleDownload(result)}
@@ -562,55 +596,97 @@ const DitheringPanel = () => {
       </Card>
 
       {/* Preview Modal */}
-      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+      <Dialog open={!!previewImage} onOpenChange={() => {
+        setPreviewImage(null);
+        setComparisonMode(false);
+      }}>
         <DialogContent className="fixed inset-0 flex items-center justify-center bg-black/50 p-0">
-          <div className="relative w-full h-full max-w-4xl max-h-[90vh] mx-auto flex items-center justify-center">
-            <img
-              src={previewImage?.type === 'input' 
-                ? URL.createObjectURL(previewImage.file.file)
-                : previewImage?.url
-              }
-              alt={previewImage?.type === 'input' ? previewImage.file.name : previewImage?.fileName}
-              className="max-w-full max-h-full object-contain"
-              style={{ transform: `scale(${zoom})` }}
-            />
-            <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="pointer-events-auto"
-                onClick={() => handleNavigatePrev()}
-              >
-                <ChevronLeft className="h-8 w-8 text-white" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="pointer-events-auto"
-                onClick={() => handleNavigateNext()}
-              >
-                <ChevronRight className="h-8 w-8 text-white" />
-              </Button>
+          <DialogTitle className="sr-only">
+            {previewImage?.type === 'input' ? 'Original Image' : 'Dithered Image'} Preview
+          </DialogTitle>
+
+          <div className="relative w-full h-full max-w-5xl max-h-[90vh] mx-auto flex flex-col">
+            {/* Toggle button for comparison mode (only show for output images) */}
+            {previewImage?.type === 'output' && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setComparisonMode(!comparisonMode)}
+                  className="bg-white/90 hover:bg-white"
+                >
+                  {comparisonMode ? 'Exit Comparison' : 'Compare with Original'}
+                </Button>
+              </div>
+            )}
+
+            {/* Image display area */}
+            <div className="flex-1 flex items-center justify-center p-4">
+              {comparisonMode && previewImage?.type === 'output' ? (
+                <ComparisonSlider
+                  originalSrc={previewImage.originalUrl}
+                  processedSrc={previewImage.url}
+                  originalAlt={`Original: ${previewImage.fileName}`}
+                  processedAlt={`${previewImage.algorithm}: ${previewImage.fileName}`}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              ) : (
+                <img
+                  src={previewImage?.type === 'input'
+                    ? URL.createObjectURL(previewImage.file.file)
+                    : previewImage?.url
+                  }
+                  alt={previewImage?.type === 'input' ? previewImage.file.name : previewImage?.fileName}
+                  className="max-w-full max-h-full object-contain"
+                  style={{ transform: `scale(${zoom})` }}
+                />
+              )}
             </div>
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-black/20 p-2 rounded-lg">
-              <Button
-                variant="secondary"
-                size="icon"
-                onClick={() => setZoom(prev => Math.max(0.5, prev - 0.25))}
-                disabled={zoom <= 0.5}
-              >
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-              <span className="text-white">{Math.round(zoom * 100)}%</span>
-              <Button
-                variant="secondary"
-                size="icon"
-                onClick={() => setZoom(prev => Math.min(MAX_ZOOM, prev + 0.25))}
-                disabled={zoom >= MAX_ZOOM}
-              >
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-            </div>
+
+            {/* Navigation controls (hide in comparison mode) */}
+            {!comparisonMode && (
+              <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="pointer-events-auto"
+                  onClick={() => handleNavigatePrev()}
+                >
+                  <ChevronLeft className="h-8 w-8 text-white" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="pointer-events-auto"
+                  onClick={() => handleNavigateNext()}
+                >
+                  <ChevronRight className="h-8 w-8 text-white" />
+                </Button>
+              </div>
+            )}
+
+            {/* Zoom controls (hide in comparison mode) */}
+            {!comparisonMode && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-black/20 p-2 rounded-lg">
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  onClick={() => setZoom(prev => Math.max(0.5, prev - 0.25))}
+                  disabled={zoom <= 0.5}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="text-white">{Math.round(zoom * 100)}%</span>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  onClick={() => setZoom(prev => Math.min(MAX_ZOOM, prev + 0.25))}
+                  disabled={zoom >= MAX_ZOOM}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
