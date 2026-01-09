@@ -1,336 +1,208 @@
-# Image Dithering App
+<div align="center">
 
-A single-page application for image dithering with multiple algorithms and a public API. Built with Flask and React.
+# 🎨 Dither Magic
 
-## Tech Stack
+### Transform your images with classic dithering algorithms
 
-### Backend
-- **Flask**: Web framework for the REST API
-- **Pillow**: Image processing library
-- **NumPy**: Numerical computing for dithering algorithms
-- **Werkzeug**: WSGI utility library for Python
+*A powerful web app and REST API for applying 12 different dithering effects to your images*
 
-### Frontend
-- **React**: UI framework
-- **Vite**: Build tool and development server
-- **TailwindCSS**: Utility-first CSS framework
-- **Radix UI**: Accessible component primitives
-- **JSZip**: Client-side ZIP file generation
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Node 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
+[![Flask](https://img.shields.io/badge/Flask-2.0+-lightgrey.svg)](https://flask.palletsprojects.com/)
+[![React](https://img.shields.io/badge/React-18+-61dafb.svg)](https://reactjs.org/)
 
-## Architecture
+[Live Demo](#) • [API Docs](docs/API.md) • [Algorithm Guide](docs/ALGORITHMS.md) • [Contributing](CONTRIBUTING.md)
 
-### Backend Components
+</div>
 
-#### Dithering Algorithms (`dithering.py`)
-Implements 12 different dithering algorithms:
+---
 
-**Error Diffusion (Classic)**
-- Floyd-Steinberg
-- Atkinson
+## ✨ Features
 
-**Error Diffusion (Extended)**
-- Stucki
-- Jarvis-Judice-Ninke
-- Burkes
+- 🎯 **12 Dithering Algorithms** - From classic Floyd-Steinberg to modern Blue Noise
+- 🚀 **Batch Processing** - Process multiple images with multiple algorithms simultaneously
+- 🎨 **Beautiful UI** - Modern, responsive interface with drag-and-drop support
+- 🔌 **REST API** - Programmatic access for automation and integration
+- 📦 **Bulk Download** - Export all results as a convenient ZIP file
+- 🔍 **Image Preview** - Zoom and compare input/output images side-by-side
+- 💾 **Smart Persistence** - Your algorithm preferences are automatically saved
+- 📱 **Mobile Friendly** - Works seamlessly on desktop and mobile devices
 
-**Sierra Family**
-- Sierra (3-Row)
-- Sierra Two-Row
-- Sierra Lite
+## 🎭 Available Algorithms
 
-**Ordered/Pattern**
-- Ordered Dithering
-- Bayer
-- Halftone
+<table>
+  <tr>
+    <td align="center"><b>Floyd-Steinberg</b><br/>Classic error diffusion</td>
+    <td align="center"><b>Atkinson</b><br/>Mac classic style</td>
+    <td align="center"><b>Stucki</b><br/>Smooth gradients</td>
+    <td align="center"><b>Jarvis</b><br/>High detail preservation</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Burkes</b><br/>Balanced quality/speed</td>
+    <td align="center"><b>Sierra</b><br/>Minimal artifacts</td>
+    <td align="center"><b>Sierra Two-Row</b><br/>Faster Sierra variant</td>
+    <td align="center"><b>Sierra Lite</b><br/>Quick previews</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Ordered</b><br/>Retro pixel pattern</td>
+    <td align="center"><b>Bayer</b><br/>Regular dot pattern</td>
+    <td align="center"><b>Halftone</b><br/>Print-style dots</td>
+    <td align="center"><b>Blue Noise</b><br/>Film grain aesthetic</td>
+  </tr>
+</table>
 
-**Modern**
-- Blue Noise
+> 📖 **Want to know more?** Check out the comprehensive [Algorithm Guide](docs/ALGORITHMS.md) for detailed technical information about each algorithm.
 
-Each algorithm is optimized for processing grayscale images using NumPy arrays for efficient computation.
-
-#### API Routes
-- **Main Routes** (`app.py`):
-  - `GET /`: Serves the React application
-  - `POST /dither`: Processes single images
-  
-- **API Blueprint** (`api.py`):
-  - `POST /api/dither`: Public API endpoint for programmatic access
-  - Supports multiple image formats: PNG, JPEG, GIF, WebP
-
-### Frontend Components
-
-#### Core Components
-- **DitheringPanel**: Main application interface
-  - Handles file uploads, processing, and results display
-  - Manages batch processing and downloads
-  - Implements image preview with zoom functionality
-
-- **Layout**: Responsive application shell
-  - Collapsible sidebar
-  - Mobile-friendly navigation
-
-#### UI Components
-Custom components built with Radix UI primitives:
-- Button
-- Card
-- Checkbox
-- Dialog
-- Form elements
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Web Interface
 
-Visit the deployed application or run locally (see Development Setup below) to:
-1. Upload one or more images (drag-and-drop or click to browse)
-2. Select dithering algorithms (12 algorithms available including Floyd-Steinberg, Atkinson, Stucki, Jarvis, Sierra family, Halftone, Blue Noise, and more)
-3. Click "Process Images" to dither your images
-4. Download individual results or all results as a ZIP file
+1. **Upload** your images (drag-and-drop or click to browse)
+2. **Select** one or more dithering algorithms
+3. **Process** your images with one click
+4. **Download** individual results or bulk download as ZIP
 
 ### API Usage
 
-Process images programmatically using the REST API:
+Process images programmatically in seconds:
 
 ```bash
-# Floyd-Steinberg dithering
 curl -X POST \
   -F "file=@photo.jpg" \
   -F "algorithm=floyd-steinberg" \
-  http://localhost:5000/api/dither \
+  https://your-deployment-url.com/api/dither \
   -o dithered.png
 ```
 
-See [API_EXAMPLES.md](API_EXAMPLES.md) for comprehensive examples in Python, JavaScript, and more.
+**Python Example:**
+```python
+import requests
 
-## Development Setup
+url = 'https://your-deployment-url.com/api/dither'
+files = {'file': open('photo.jpg', 'rb')}
+data = {'algorithm': 'atkinson'}
+
+response = requests.post(url, files=files, data=data)
+
+with open('dithered.png', 'wb') as f:
+    f.write(response.content)
+```
+
+> 📖 **Need more examples?** See [API_EXAMPLES.md](API_EXAMPLES.md) for comprehensive examples in Python, JavaScript, cURL, and more.
+
+## 💻 Development Setup
 
 ### Prerequisites
+
+- Python 3.11 or higher
+- Node.js 18 or higher
+- pip and npm
+
+### Installation
+
 ```bash
-# Install Python dependencies
+# Clone the repository
+git clone https://github.com/learnwithcc/dither-magic.git
+cd dither-magic
+
+# Install backend dependencies
 pip install pillow numpy werkzeug flask
 
-# Install Node.js dependencies
+# Install frontend dependencies
 npm install
 ```
 
-### Development Server
-1. Start Flask backend:
-```bash
-python app.py
-```
+### Running Locally
 
-2. Start Vite development server:
+Start both servers in separate terminals:
+
 ```bash
+# Terminal 1: Start Flask backend
+python app.py
+
+# Terminal 2: Start Vite dev server
 npm run dev
 ```
 
-3. Open http://localhost:5173 in your browser
+Then open http://localhost:5173 in your browser.
 
-## API Documentation
+> 📖 **Need help?** Check out the [Development Guide](docs/DEVELOPMENT.md) for detailed setup instructions.
 
-### POST /api/dither
-Process an image using specified dithering algorithm.
+## 🎨 Use Cases
 
-#### Request
-- Content-Type: `multipart/form-data`
-- Body:
-  - `file`: Image file (PNG, JPEG, GIF, WebP)
-  - `algorithm`: String enum (optional, default: `floyd-steinberg`)
-    - `floyd-steinberg` - Classic error diffusion
-    - `ordered` - 4x4 threshold pattern
-    - `atkinson` - Mac classic style
-    - `bayer` - Regular dot pattern
-    - `stucki` - Smooth gradients
-    - `jarvis` - High detail preservation
-    - `burkes` - Balanced quality/speed
-    - `sierra` - Minimal artifacts
-    - `sierra-two-row` - Faster Sierra variant
-    - `sierra-lite` - Fastest Sierra
-    - `halftone` - Print-style dots
-    - `blue-noise` - Film grain aesthetic
+- **Retro Graphics** - Create authentic 1-bit artwork with vintage computing aesthetics
+- **Print Design** - Generate halftone patterns for screen printing and offset printing
+- **Web Optimization** - Reduce image file sizes while maintaining visual interest
+- **Artistic Effects** - Add unique textures and patterns to photography and digital art
+- **Game Development** - Create pixel-perfect assets for retro-style games
+- **Data Visualization** - Apply dithering to scientific visualizations and charts
 
-#### Response
-- Success (200): PNG image file
-- Error (400/500): JSON object with error message
-  ```json
-  {
-    "error": "Error description"
-  }
-  ```
+## 📚 Documentation
 
-#### Example
-```bash
-curl -X POST \
-  -F "file=@image.jpg" \
-  -F "algorithm=atkinson" \
-  http://localhost:5000/api/dither \
-  -o output.png
-```
+- **[API Reference](docs/API.md)** - Complete REST API documentation
+- **[Algorithm Guide](docs/ALGORITHMS.md)** - Detailed algorithm descriptions and comparisons
+- **[Development Guide](docs/DEVELOPMENT.md)** - Setup, coding standards, and best practices
+- **[Architecture](docs/ARCHITECTURE.md)** - Technical architecture and component details
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[API Examples](API_EXAMPLES.md)** - Practical code examples in multiple languages
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
 
-For more examples and client libraries, see [API_EXAMPLES.md](API_EXAMPLES.md).
+## 🛠️ Tech Stack
 
-## Image Processing
+**Backend**
+- Flask - Web framework
+- Pillow - Image processing
+- NumPy - Efficient array operations
 
-### Dithering Algorithms Details
+**Frontend**
+- React - UI framework
+- Vite - Build tool
+- TailwindCSS - Styling
+- Radix UI - Accessible components
 
-#### Error Diffusion Algorithms
+## 🎯 Performance
 
-**Floyd-Steinberg**
-- Classic error diffusion algorithm
-- Error distribution: 7/16, 3/16, 5/16, 1/16
-- Good for general use
+- **Maximum file size**: 32MB per image
+- **Supported formats**: PNG, JPEG, GIF, WebP
+- **Processing time**: 1-60 seconds depending on image size and algorithm
+- **Recommended**: Images under 5MB for optimal performance
 
-**Atkinson**
-- Modified error diffusion (Mac classic style)
-- Distributes 6/8 of error (discards 2/8)
-- Preserves more contrast, brighter appearance
+## 🤝 Contributing
 
-**Stucki**
-- 3-row extended kernel
-- Smoother gradients, less visible patterns
-- Excellent for photographs
+We welcome contributions! Whether you want to:
 
-**Jarvis-Judice-Ninke**
-- Large 3-row kernel optimized for photos
-- High-quality with excellent detail preservation
-- Best for detailed images
+- 🐛 Fix bugs
+- ✨ Add new dithering algorithms
+- 📖 Improve documentation
+- 🎨 Enhance the UI
+- 🚀 Optimize performance
 
-**Burkes**
-- Simplified 2-row kernel
-- Good balance between speed and quality
-- Faster than Stucki/Jarvis
+Check out our [Contributing Guide](CONTRIBUTING.md) to get started!
 
-**Sierra (3-Row)**
-- Full 3-row kernel
-- Excellent quality with minimal artifacts
-- Good for high-contrast images
+## 📝 License
 
-**Sierra Two-Row**
-- Simplified 2-row version
-- Faster while maintaining good quality
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-**Sierra Lite**
-- Minimal 3-pixel kernel
-- Fastest Sierra variant
-- Good for quick previews
+## 🙏 Acknowledgments
 
-#### Ordered Dithering Algorithms
+- Dithering algorithms based on research by Robert Floyd, Louis Steinberg, Bill Atkinson, and others
+- Built with modern web technologies and open-source tools
+- Inspired by the retro computing and digital art communities
 
-**Ordered Dithering**
-- Uses 4x4 threshold map
-- Fixed pattern dithering
-- Suitable for retro-style effects
+## 📬 Support
 
-**Bayer**
-- Ordered dithering variant
-- Uses 4x4 Bayer matrix
-- Produces regular pattern
+- 🐛 [Report bugs](https://github.com/learnwithcc/dither-magic/issues)
+- 💡 [Request features](https://github.com/learnwithcc/dither-magic/issues)
+- 📖 [Read the docs](docs/)
+- ⭐ Star this repo if you find it useful!
 
-**Halftone**
-- Classic print-style circular dots
-- Larger dots in dark areas
-- Artistic/print aesthetic
+---
 
-#### Modern Techniques
+<div align="center">
 
-**Blue Noise**
-- Stochastic threshold texture
-- Even distribution without visible patterns
-- Film grain-like aesthetic
+**Made with ❤️ by the Dither Magic team**
 
-## Features
+[⬆ Back to Top](#-dither-magic)
 
-- **12 Dithering Algorithms**: Floyd-Steinberg, Atkinson, Stucki, Jarvis, Burkes, Sierra family (3 variants), Ordered, Bayer, Halftone, and Blue Noise
-- **Batch Processing**: Process multiple images with multiple algorithms simultaneously
-- **Drag-and-Drop Upload**: Easy file upload with drag-and-drop support
-- **Image Preview**: Zoom and navigate through input and output images
-- **Bulk Download**: Download all results as a ZIP file
-- **Algorithm Persistence**: Your algorithm selection is saved in localStorage
-- **REST API**: Programmatic access for automation and integration
-- **Responsive Design**: Works on desktop and mobile devices
-
-## Performance & Limits
-
-- **Maximum File Size**: 32MB per image
-- **Supported Formats**: PNG, JPEG, GIF, WebP
-- **Processing Time**: Varies by image size and algorithm
-  - Small images (< 1MB): ~1-2 seconds
-  - Medium images (1-5MB): ~3-10 seconds
-  - Large images (5-32MB): ~10-60 seconds
-- **Recommended Image Size**: Under 5MB for best performance
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue**: "No file part" error
-- **Solution**: Ensure you're sending the file with the correct field name (`file`)
-
-**Issue**: "Invalid file type" error
-- **Solution**: Only PNG, JPEG, GIF, and WebP formats are supported. Convert your image first.
-
-**Issue**: "Request entity too large" error
-- **Solution**: Image exceeds 32MB limit. Resize or compress the image before uploading.
-
-**Issue**: Processing takes a long time
-- **Solution**: Large images (>5MB) can take 30+ seconds. Consider resizing if you don't need high resolution.
-
-**Issue**: Output image appears too dark/bright
-- **Solution**: Different algorithms produce different results. Try different algorithms to find the best result for your image.
-
-**Issue**: CORS errors when using the API
-- **Solution**: The API currently doesn't have CORS enabled. For cross-origin requests, configure CORS in `app.py` or use a proxy.
-
-### Development Issues
-
-**Issue**: Port 5000 already in use
-- **Solution**: Kill the process using port 5000 or change the port in `app.py`
-  ```bash
-  # Find and kill process on port 5000
-  lsof -ti:5000 | xargs kill -9
-  ```
-
-**Issue**: Module not found errors
-- **Solution**: Ensure all dependencies are installed
-  ```bash
-  pip install pillow numpy werkzeug flask
-  npm install
-  ```
-
-**Issue**: Vite dev server not connecting to Flask backend
-- **Solution**: Check that Flask is running on port 5000 and Vite proxy is configured in `vite.config.js`
-
-## Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- How to set up your development environment
-- How to add new dithering algorithms
-- Code style guidelines
-- How to submit pull requests
-
-## Development Guidelines
-
-### Code Style
-- Python: Follow PEP 8 with docstrings for all functions
-- JavaScript: Use ESLint with React plugin
-- Maximum line length: 100 characters
-
-### Git Workflow
-1. Create feature branches from `main`
-2. Write clear, descriptive commit messages
-3. Ensure code is documented before submitting PRs
-
-### Performance Considerations
-- Use NumPy for efficient image processing
-- Implement client-side image preview to avoid unnecessary uploads
-- Batch process multiple algorithms to reduce overhead
-- Stream large file downloads
-
-## Additional Resources
-
-- [API_EXAMPLES.md](API_EXAMPLES.md) - Comprehensive API usage examples
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
-- [Dithering Algorithms](https://en.wikipedia.org/wiki/Dither) - Learn more about dithering
-
-## License
-MIT License
+</div>
