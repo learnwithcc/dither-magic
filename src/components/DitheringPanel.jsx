@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -15,15 +15,20 @@ import {
   ChevronLeft,
   ChevronRight,
   Palette,
-  SplitSquareHorizontal
+  SplitSquareHorizontal,
+  Sliders,
+  Grid3X3
 } from "lucide-react";
 import ComparisonSlider from '@/components/ui/comparison-slider';
+import StepProgress from '@/components/ui/step-progress';
+import AlgorithmPresets from '@/components/ui/algorithm-presets';
+import CollapsibleSection from '@/components/ui/collapsible-section';
+import FocusModeToggle, { FocusModeInfo } from '@/components/ui/focus-mode-toggle';
 import JSZip from 'jszip';
 import PaletteSelector, { parseHexColors } from './PaletteSelector';
 
 /**
  * Map of algorithm identifiers to their corresponding icon paths.
- * @type {Object.<string, string>}
  */
 const algorithmIcons = {
   'floyd-steinberg': '/static/img/algorithms/floyd-steinberg.svg',
@@ -41,41 +46,32 @@ const algorithmIcons = {
 };
 
 /**
- * Main dithering panel component for the application.
+ * All available algorithms
+ */
+const ALL_ALGORITHMS = [
+  'floyd-steinberg', 'ordered', 'atkinson', 'bayer',
+  'stucki', 'jarvis', 'burkes', 'sierra',
+  'sierra-two-row', 'sierra-lite', 'halftone', 'blue-noise'
+];
+
+/**
+ * Main dithering panel component with ADHD-friendly UX.
  *
- * Provides a complete interface for:
- * - Uploading multiple images via file input or drag-and-drop
- * - Selecting one or more dithering algorithms
- * - Batch processing images with selected algorithms
- * - Previewing input and output images with zoom controls
- * - Downloading individual results or multiple results as a ZIP file
- *
- * State persists algorithm selection in localStorage for user convenience.
- *
- * @component
- * @returns {React.Element} The dithering panel interface
+ * Features:
+ * - Step-by-step progress indicator
+ * - Algorithm presets for quick start
+ * - Progressive disclosure of advanced options
+ * - Focus mode for reduced distractions
+ * - Clear visual feedback
  */
 const DitheringPanel = () => {
   const [files, setFiles] = useState([]);
   const [selectedAlgorithms, setSelectedAlgorithms] = useState(() => {
     const saved = localStorage.getItem('selectedAlgorithms');
-    // Default algorithms with new ones included
-    const defaults = {
-      'floyd-steinberg': true,
-      'ordered': false,
-      'atkinson': false,
-      'bayer': false,
-      'stucki': false,
-      'jarvis': false,
-      'burkes': false,
-      'sierra': false,
-      'sierra-two-row': false,
-      'sierra-lite': false,
-      'halftone': false,
-      'blue-noise': false
-    };
+    const defaults = Object.fromEntries(
+      ALL_ALGORITHMS.map(algo => [algo, algo === 'floyd-steinberg'])
+    );
     if (saved) {
-      // Merge saved with defaults to ensure new algorithms are included
       const parsed = JSON.parse(saved);
       return { ...defaults, ...parsed };
     }
@@ -96,11 +92,38 @@ const DitheringPanel = () => {
   });
   const [customPalette, setCustomPalette] = useState('');
 
+  // ADHD-friendly UI state
+  const [focusMode, setFocusMode] = useState(() => {
+    return localStorage.getItem('focusMode') === 'true';
+  });
+  const [activePreset, setActivePreset] = useState(() => {
+    return localStorage.getItem('activePreset') || 'classic';
+  });
+
+  // Calculate current step based on state
+  const currentStep = useMemo(() => {
+    if (results.length > 0) return 4;
+    if (processing) return 3;
+    if (files.length > 0 && Object.values(selectedAlgorithms).some(Boolean)) return 2;
+    if (files.length > 0) return 2;
+    return 1;
+  }, [files.length, selectedAlgorithms, processing, results.length]);
+
+  const selectedAlgorithmCount = useMemo(() => {
+    return Object.values(selectedAlgorithms).filter(Boolean).length;
+  }, [selectedAlgorithms]);
+
+  // Persist focus mode and preset
+  useEffect(() => {
+    localStorage.setItem('focusMode', focusMode);
+  }, [focusMode]);
+
+  useEffect(() => {
+    localStorage.setItem('activePreset', activePreset);
+  }, [activePreset]);
+
   /**
    * Adds new image files to the upload queue.
-   * Filters for image files only and assigns unique IDs.
-   *
-   * @param {FileList|File[]} newFiles - Files to add to the queue
    */
   const addFiles = useCallback((newFiles) => {
     const imageFiles = Array.from(newFiles).filter(
@@ -117,23 +140,11 @@ const DitheringPanel = () => {
     ]);
   }, []);
 
-  /**
-   * Handles drag over event for file drag-and-drop.
-   * Prevents default behavior to allow drop.
-   *
-   * @param {DragEvent} e - The drag event
-   */
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
 
-  /**
-   * Handles file drop event for drag-and-drop upload.
-   * Filters for image files and adds them to the queue.
-   *
-   * @param {DragEvent} e - The drop event
-   */
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -160,14 +171,14 @@ const DitheringPanel = () => {
 
   const handleNavigatePrev = () => {
     if (!previewImage) return;
-    
+
     const items = previewImage.type === 'input' ? files : results;
-    const currentIndex = items.findIndex(item => 
-      previewImage.type === 'input' 
+    const currentIndex = items.findIndex(item =>
+      previewImage.type === 'input'
         ? item.id === previewImage.file.id
         : item.id === previewImage.id
     );
-    
+
     if (currentIndex > 0) {
       const prevItem = items[currentIndex - 1];
       setPreviewImage(
@@ -180,14 +191,14 @@ const DitheringPanel = () => {
 
   const handleNavigateNext = () => {
     if (!previewImage) return;
-    
+
     const items = previewImage.type === 'input' ? files : results;
-    const currentIndex = items.findIndex(item => 
-      previewImage.type === 'input' 
+    const currentIndex = items.findIndex(item =>
+      previewImage.type === 'input'
         ? item.id === previewImage.file.id
         : item.id === previewImage.id
     );
-    
+
     if (currentIndex < items.length - 1) {
       const nextItem = items[currentIndex + 1];
       setPreviewImage(
@@ -218,7 +229,6 @@ const DitheringPanel = () => {
           break;
         case 'c':
         case 'C':
-          // Toggle comparison mode with 'C' key (only for output images)
           if (previewImage?.type === 'output') {
             setComparisonMode(!comparisonMode);
           }
@@ -238,6 +248,22 @@ const DitheringPanel = () => {
     };
   }, [previewImage]);
 
+  /**
+   * Handle preset selection
+   */
+  const handlePresetSelect = (presetId, algorithms) => {
+    setActivePreset(presetId);
+
+    if (algorithms) {
+      // Set only the selected algorithms
+      const newState = Object.fromEntries(
+        ALL_ALGORITHMS.map(algo => [algo, algorithms.includes(algo)])
+      );
+      setSelectedAlgorithms(newState);
+      localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
+    }
+  };
+
   const handleProcess = async () => {
     const algorithms = Object.entries(selectedAlgorithms)
       .filter(([_, selected]) => selected)
@@ -248,7 +274,6 @@ const DitheringPanel = () => {
       return;
     }
 
-    // Parse custom palette if provided
     const customColors = parseHexColors(customPalette);
     const useCustomPalette = customColors.length >= 2;
 
@@ -257,7 +282,6 @@ const DitheringPanel = () => {
 
     try {
       for (const fileData of files) {
-        // Create URL for original image once per file
         const originalUrl = URL.createObjectURL(fileData.file);
 
         for (const algorithm of algorithms) {
@@ -281,7 +305,6 @@ const DitheringPanel = () => {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
 
-            // Get palette name for display
             const paletteName = useCustomPalette
               ? 'Custom'
               : palettes.find(p => p.id === selectedPalette)?.name || selectedPalette;
@@ -292,7 +315,7 @@ const DitheringPanel = () => {
               algorithm,
               palette: paletteName,
               url,
-              originalUrl  // Store reference to original image
+              originalUrl
             });
           } catch (error) {
             console.error('Error processing file:', error);
@@ -358,15 +381,34 @@ const DitheringPanel = () => {
   return (
     <>
       <Card className="w-full max-w-3xl mx-auto">
-        <CardHeader>
-          <CardTitle>Image Dithering</CardTitle>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl">Image Dithering</CardTitle>
+            <FocusModeToggle
+              enabled={focusMode}
+              onToggle={() => setFocusMode(!focusMode)}
+            />
+          </div>
         </CardHeader>
+
         <CardContent className="space-y-6">
+          {/* Progress Indicator */}
+          <StepProgress
+            currentStep={currentStep}
+            hasFiles={files.length > 0}
+            hasAlgorithms={selectedAlgorithmCount > 0}
+            isProcessing={processing}
+            hasResults={results.length > 0}
+          />
+
+          {/* Focus Mode Info */}
+          <FocusModeInfo enabled={focusMode} />
+
           {/* File Upload Section */}
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
-            className="border-2 border-dashed rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
+            className="border-2 border-dashed rounded-xl p-8 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-200"
           >
             <input
               type="file"
@@ -377,11 +419,14 @@ const DitheringPanel = () => {
               onChange={(e) => addFiles(Array.from(e.target.files))}
             />
             <div className="space-y-4">
-              <Upload className="mx-auto h-12 w-12 text-gray-400" />
+              <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
+                <Upload className="h-8 w-8 text-blue-500" />
+              </div>
               <div>
                 <Button
                   variant="default"
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                  size="lg"
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-8"
                   onClick={() => document.getElementById('file-input').click()}
                 >
                   Select Images
@@ -393,104 +438,152 @@ const DitheringPanel = () => {
             </div>
           </div>
 
-          {/* Algorithm Selection */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Select Algorithms</h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const allChecked = Object.values(selectedAlgorithms).every(Boolean);
-                  setSelectedAlgorithms(prev => {
-                    const newState = {};
-                    Object.keys(prev).forEach(key => {
-                      newState[key] = !allChecked;
-                    });
-                    localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
-                    return newState;
-                  });
-                }}
-              >
-                {Object.values(selectedAlgorithms).every(Boolean) ? 'Deselect All' : 'Select All'}
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.entries(selectedAlgorithms).map(([algo, checked]) => (
-                <label key={algo} className="flex items-center space-x-3">
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={(checked) =>
-                      setSelectedAlgorithms(prev => {
-                        const newState = {...prev, [algo]: checked};
-                        localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
-                        return newState;
-                      })
-                    }
-                  />
-                  <img
-                    src={algorithmIcons[algo]}
-                    alt={`${algo} pattern`}
-                    className="w-6 h-6"
-                  />
-                  <span className="capitalize">{algo.replace('-', ' ')}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Color Palette Selection */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Palette className="h-5 w-5 text-gray-500" />
-              <h3 className="text-lg font-semibold">Color Palette</h3>
-            </div>
-            <PaletteSelector
-              palettes={palettes}
-              selectedPalette={selectedPalette}
-              onSelect={setSelectedPalette}
-              customPalette={customPalette}
-              onCustomPaletteChange={setCustomPalette}
-            />
-          </div>
-
           {/* File List */}
-          <div className="grid grid-cols-2 gap-4">
-            {files.map((file) => (
-              <Card key={file.id} className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm truncate">{file.name}</span>
-                  <span className="text-xs text-green-500">🟢 Ready</span>
-                </div>
-                <div className="mt-2 flex space-x-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="flex-1 bg-gray-100 hover:bg-gray-200"
-                    onClick={() => setPreviewImage({ type: 'input', file })}
+          {files.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-800">
+                  {files.length} image{files.length > 1 ? 's' : ''} ready
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => setFiles([])}
+                >
+                  Clear all
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {files.map((file) => (
+                  <div
+                    key={file.id}
+                    className="relative group bg-gray-100 rounded-lg p-2 flex items-center gap-2"
                   >
-                    <Image className="h-4 w-4 mr-2" />
-                    Preview
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setFiles(prev => prev.filter(f => f.id !== file.id))}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Remove
-                  </Button>
+                    <div className="w-10 h-10 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
+                      <img
+                        src={URL.createObjectURL(file.file)}
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <span className="text-xs truncate flex-1">{file.name}</span>
+                    <button
+                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                      onClick={() => setFiles(prev => prev.filter(f => f.id !== file.id))}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Algorithm Presets - Always visible */}
+          <AlgorithmPresets
+            onSelectPreset={handlePresetSelect}
+            onSelectPalette={setSelectedPalette}
+            activePreset={activePreset}
+          />
+
+          {/* Advanced Options - Collapsible in Focus Mode */}
+          {!focusMode && (
+            <>
+              {/* Individual Algorithm Selection */}
+              <CollapsibleSection
+                title="Fine-tune Algorithms"
+                description="Select specific algorithms individually"
+                icon={Sliders}
+                badge={`${selectedAlgorithmCount} selected`}
+                defaultOpen={activePreset === 'custom'}
+              >
+                <div className="space-y-4">
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setActivePreset('custom');
+                        const allChecked = Object.values(selectedAlgorithms).every(Boolean);
+                        const newState = Object.fromEntries(
+                          ALL_ALGORITHMS.map(algo => [algo, !allChecked])
+                        );
+                        setSelectedAlgorithms(newState);
+                        localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
+                      }}
+                    >
+                      {Object.values(selectedAlgorithms).every(Boolean) ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {ALL_ALGORITHMS.map((algo) => (
+                      <label
+                        key={algo}
+                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
+                        <Checkbox
+                          checked={selectedAlgorithms[algo]}
+                          onCheckedChange={(checked) => {
+                            setActivePreset('custom');
+                            setSelectedAlgorithms(prev => {
+                              const newState = {...prev, [algo]: checked};
+                              localStorage.setItem('selectedAlgorithms', JSON.stringify(newState));
+                              return newState;
+                            });
+                          }}
+                        />
+                        <img
+                          src={algorithmIcons[algo]}
+                          alt={`${algo} pattern`}
+                          className="w-6 h-6"
+                        />
+                        <span className="capitalize text-sm">{algo.replace(/-/g, ' ')}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </Card>
-            ))}
-          </div>
+              </CollapsibleSection>
+
+              {/* Color Palette Selection */}
+              <CollapsibleSection
+                title="Color Palette"
+                description="Choose colors for your dithered images"
+                icon={Palette}
+                defaultOpen={selectedPalette !== 'bw'}
+              >
+                <PaletteSelector
+                  palettes={palettes}
+                  selectedPalette={selectedPalette}
+                  onSelect={setSelectedPalette}
+                  customPalette={customPalette}
+                  onCustomPaletteChange={setCustomPalette}
+                />
+              </CollapsibleSection>
+            </>
+          )}
+
+          {/* Quick Palette Selection for Focus Mode */}
+          {focusMode && (
+            <div className="flex items-center gap-2 justify-center">
+              <span className="text-sm text-gray-500">Palette:</span>
+              <select
+                value={selectedPalette}
+                onChange={(e) => setSelectedPalette(e.target.value)}
+                className="text-sm border rounded-lg px-3 py-1.5 bg-white"
+              >
+                <option value="bw">Black & White</option>
+                <option value="gameboy">Game Boy</option>
+                <option value="sepia">Sepia</option>
+              </select>
+            </div>
+          )}
 
           {/* Process Button */}
           {files.length > 0 && (
             <Button
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 text-lg"
-              disabled={processing || !Object.values(selectedAlgorithms).some(Boolean)}
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-6 text-lg rounded-xl shadow-lg shadow-blue-200 transition-all duration-200"
+              disabled={processing || selectedAlgorithmCount === 0}
               onClick={handleProcess}
             >
               {processing ? (
@@ -499,80 +592,108 @@ const DitheringPanel = () => {
                   Processing...
                 </>
               ) : (
-                'Process Images'
+                <>
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Process {files.length} Image{files.length > 1 ? 's' : ''}
+                </>
               )}
             </Button>
           )}
 
           {/* Results Section */}
           {results.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-4 pt-4 border-t">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Results</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const allSelected = results.every(result => selectedResults.has(result.id));
-                    if (allSelected) {
-                      setSelectedResults(new Set());
-                    } else {
-                      setSelectedResults(new Set(results.map(result => result.id)));
-                    }
-                  }}
-                >
-                  {results.every(result => selectedResults.has(result.id)) ? 'Deselect All' : 'Select All'}
-                </Button>
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  Results
+                  <span className="text-sm font-normal text-gray-500">
+                    ({results.length} images)
+                  </span>
+                </h3>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const allSelected = results.every(result => selectedResults.has(result.id));
+                      if (allSelected) {
+                        setSelectedResults(new Set());
+                      } else {
+                        setSelectedResults(new Set(results.map(result => result.id)));
+                      }
+                    }}
+                  >
+                    {results.every(result => selectedResults.has(result.id)) ? 'Deselect All' : 'Select All'}
+                  </Button>
+                </div>
               </div>
+
+              {/* Quick Compare Tip */}
+              <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 flex items-center gap-3">
+                <SplitSquareHorizontal className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                <p className="text-sm text-purple-700">
+                  <strong>Tip:</strong> Click the compare icon on any result to see before/after side-by-side
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 {results.map((result) => (
-                  <Card key={result.id} className="p-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm capitalize">{result.algorithm.replace('-', ' ')}</span>
-                          {result.palette && (
-                            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                              {result.palette}
-                            </span>
-                          )}
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toggleResultSelection(result.id)}
-                        >
-                          {selectedResults.has(result.id) ? (
-                            <Check className="h-4 w-4" />
-                          ) : (
-                            'Select'
-                          )}
-                        </Button>
-                      </div>
-                      <div className="relative">
-                        <img
-                          src={result.url}
-                          alt={`${result.algorithm} - ${result.fileName}`}
-                          className="w-full h-32 object-cover rounded-md cursor-pointer"
-                          onClick={() => setPreviewImage({ ...result, type: 'output' })}
-                        />
-                        {/* Quick compare button */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPreviewImage({ ...result, type: 'output' });
-                            setComparisonMode(true);
-                          }}
-                          title="Compare with original"
-                        >
-                          <SplitSquareHorizontal className="h-4 w-4" />
-                        </Button>
+                  <Card key={result.id} className="overflow-hidden">
+                    <div className="relative">
+                      <img
+                        src={result.url}
+                        alt={`${result.algorithm} - ${result.fileName}`}
+                        className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => setPreviewImage({ ...result, type: 'output' })}
+                      />
+
+                      {/* Quick compare button - prominent */}
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="absolute top-2 right-2 bg-purple-500 hover:bg-purple-600 text-white h-8 px-2 gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewImage({ ...result, type: 'output' });
+                          setComparisonMode(true);
+                        }}
+                        title="Compare with original"
+                      >
+                        <SplitSquareHorizontal className="h-4 w-4" />
+                        <span className="text-xs">Compare</span>
+                      </Button>
+
+                      {/* Selection checkbox */}
+                      <button
+                        className={`absolute top-2 left-2 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                          selectedResults.has(result.id)
+                            ? 'bg-blue-500 border-blue-500 text-white'
+                            : 'bg-white/80 border-gray-300 hover:border-blue-400'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleResultSelection(result.id);
+                        }}
+                      >
+                        {selectedResults.has(result.id) && <Check className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium capitalize">
+                          {result.algorithm.replace(/-/g, ' ')}
+                        </span>
+                        {result.palette && (
+                          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                            {result.palette}
+                          </span>
+                        )}
                       </div>
                       <Button
                         className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                        size="sm"
                         onClick={() => handleDownload(result)}
                       >
                         <Download className="h-4 w-4 mr-2" />
@@ -582,12 +703,14 @@ const DitheringPanel = () => {
                   </Card>
                 ))}
               </div>
+
               {selectedResults.size > 0 && (
                 <Button
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white mt-4"
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-4"
                   onClick={handleBatchDownload}
                 >
-                  Download All Selected ({selectedResults.size})
+                  <Download className="h-5 w-5 mr-2" />
+                  Download {selectedResults.size} Selected Images
                 </Button>
               )}
             </div>
@@ -606,15 +729,19 @@ const DitheringPanel = () => {
           </DialogTitle>
 
           <div className="relative w-full h-full max-w-5xl max-h-[90vh] mx-auto flex flex-col">
-            {/* Toggle button for comparison mode (only show for output images) */}
+            {/* Toggle button for comparison mode */}
             {previewImage?.type === 'output' && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
                 <Button
-                  variant="secondary"
+                  variant={comparisonMode ? "default" : "secondary"}
                   size="sm"
                   onClick={() => setComparisonMode(!comparisonMode)}
-                  className="bg-white/90 hover:bg-white"
+                  className={comparisonMode
+                    ? "bg-purple-500 hover:bg-purple-600 text-white"
+                    : "bg-white/90 hover:bg-white"
+                  }
                 >
+                  <SplitSquareHorizontal className="w-4 h-4 mr-2" />
                   {comparisonMode ? 'Exit Comparison' : 'Compare with Original'}
                 </Button>
               </div>
@@ -643,13 +770,13 @@ const DitheringPanel = () => {
               )}
             </div>
 
-            {/* Navigation controls (hide in comparison mode) */}
+            {/* Navigation controls */}
             {!comparisonMode && (
               <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="pointer-events-auto"
+                  className="pointer-events-auto bg-black/20 hover:bg-black/40"
                   onClick={() => handleNavigatePrev()}
                 >
                   <ChevronLeft className="h-8 w-8 text-white" />
@@ -657,7 +784,7 @@ const DitheringPanel = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="pointer-events-auto"
+                  className="pointer-events-auto bg-black/20 hover:bg-black/40"
                   onClick={() => handleNavigateNext()}
                 >
                   <ChevronRight className="h-8 w-8 text-white" />
@@ -665,9 +792,9 @@ const DitheringPanel = () => {
               </div>
             )}
 
-            {/* Zoom controls (hide in comparison mode) */}
+            {/* Zoom controls */}
             {!comparisonMode && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-black/20 p-2 rounded-lg">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-black/40 p-2 rounded-lg">
                 <Button
                   variant="secondary"
                   size="icon"
@@ -676,7 +803,7 @@ const DitheringPanel = () => {
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
-                <span className="text-white">{Math.round(zoom * 100)}%</span>
+                <span className="text-white min-w-[4rem] text-center">{Math.round(zoom * 100)}%</span>
                 <Button
                   variant="secondary"
                   size="icon"
@@ -687,11 +814,28 @@ const DitheringPanel = () => {
                 </Button>
               </div>
             )}
+
+            {/* Keyboard hint */}
+            <div className="absolute bottom-4 right-4 text-white/60 text-xs bg-black/30 px-3 py-1.5 rounded">
+              Press <kbd className="bg-white/20 px-1.5 py-0.5 rounded">C</kbd> to compare
+              {!comparisonMode && <> &bull; <kbd className="bg-white/20 px-1.5 py-0.5 rounded">←</kbd><kbd className="bg-white/20 px-1.5 py-0.5 rounded">→</kbd> to navigate</>}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
     </>
   );
 };
+
+// Import Sparkles for the process button
+const Sparkles = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+    <path d="M5 3v4"/>
+    <path d="M19 17v4"/>
+    <path d="M3 5h4"/>
+    <path d="M17 19h4"/>
+  </svg>
+);
 
 export default DitheringPanel;
